@@ -1,6 +1,6 @@
 # DaliBot
 
-A ChatGPT-powered AI bot!
+A ChatGPT-powered telegram bot!
 
 API References:
 1. OpenAI API https://platform.openai.com/docs/introduction/overview

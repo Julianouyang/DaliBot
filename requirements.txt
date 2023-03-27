@@ -1,3 +1,4 @@
 python-telegram-bot==20.1
 openai==0.27.2
 flask==2.2.3
+black==23.1.0

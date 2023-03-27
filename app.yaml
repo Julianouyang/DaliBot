@@ -1,0 +1,9 @@
+runtime: python310  # Replace with your Python version (e.g., python39 for Python 3.9)
+entrypoint: python main.py
+automatic_scaling:
+  min_instances: 1
+  min_idle_instances: 1
+
+handlers:  # URL routing configuration
+  - url: /.*
+    script: auto

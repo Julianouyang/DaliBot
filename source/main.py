@@ -19,7 +19,7 @@ import json
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
-
+logger = logging.getLogger("Dalibot")
 
 class ROLE(Enum):
     SYSTEM = "system"
@@ -28,7 +28,7 @@ class ROLE(Enum):
 
 
 class DaliBotCore:
-    DEFAULT_SYSTEM_MSG = "You are a helpful assistant."
+    SYSTEM_MSG = "You are a helpful assistant."
     # cache
     msg_cache = []
 
@@ -64,12 +64,13 @@ class DaliBotCore:
     @staticmethod
     async def reset_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
         DaliBotCore.msg_cache = []
+        DaliBotCore.SYSTEM_MSG = "You are a helpful assistant."
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Reset..")
 
     @staticmethod
     async def system_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
         DaliBotCore.msg_cache = []
-        DaliBotCore.DEFAULT_SYSTEM_MSG = (" ").join(context.args)
+        DaliBotCore.SYSTEM_MSG = (" ").join(context.args)
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Sure.")
 
     @staticmethod
@@ -80,38 +81,41 @@ class DaliBotCore:
 
         def gpt_turbo_response(text: str) -> str:
             system_messge = [
-                {"role": ROLE.SYSTEM.value, "content": DaliBotCore.DEFAULT_SYSTEM_MSG}
+                {"role": ROLE.SYSTEM.value, "content": DaliBotCore.SYSTEM_MSG}
             ]
-            DaliBotCore.msg_cache.append({"role": ROLE.USER.value, "content": text})
-
-            messages = truncate_messages_to_fit_token_limit(DaliBotCore.msg_cache)
+            cur_msg = [
+                {"role": ROLE.USER.value, "content": text}
+            ]
+            messages = truncate_messages(DaliBotCore.msg_cache)
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
-                messages=messages + system_messge,
+                messages=system_messge + messages + cur_msg,
             )
 
             response_msg = response.choices[0].message.content.strip()
-            print(f"token used: {response.usage.total_tokens}")
+            logger.info(f"token used: {response.usage.total_tokens}")
 
-            DaliBotCore.msg_cache.append(
-                {"role": ROLE.ASSISTANT.value, "content": response_msg}
-            )
+            DaliBotCore.msg_cache.extend([
+                {"role": ROLE.SYSTEM.value, "name": "example_assistant", "content": response_msg},
+                {"role": ROLE.SYSTEM.value, "name": "example_user", "content": text}
+            ])
             return response_msg
 
         def gpt_image_response(text: str) -> str:
             response = openai.Image.create(prompt=text, n=1, size="512x512")
             return response["data"][0]["url"]
 
-        def truncate_messages_to_fit_token_limit(
-            messages: List[dict], max_tokens: int = 2048
+        def truncate_messages(
+            messages: List[dict], max_tokens: int = 2048, max_messages: int = 8
         ) -> List[dict]:
             total_tokens = 0
+            total_messages = 0
             truncated_messages = []
 
             for message in reversed(messages):
                 total_tokens += len(encoding.encode(json.dumps(message)))
-
-                if total_tokens <= max_tokens:
+                total_messages += 1
+                if total_tokens <= max_tokens and total_messages < max_messages:
                     truncated_messages.insert(0, message)
                 else:
                     break
@@ -119,7 +123,7 @@ class DaliBotCore:
             return truncated_messages
 
         input_text = update.message.text
-
+        
         keywords = ["draw", "image", "picture", "paint"]
         if any(keyword in input_text.lower() for keyword in keywords):
             for keyword in keywords:

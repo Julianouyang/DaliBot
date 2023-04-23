@@ -5,9 +5,9 @@ from telegram.ext import (
     Updater,
     CommandHandler,
     MessageHandler,
-    CallbackContext,
     ApplicationBuilder,
     ContextTypes,
+    CallbackContext,
 )
 import openai
 import os
@@ -15,11 +15,14 @@ from enum import Enum
 from typing import List
 import tiktoken
 import json
+import time
+
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger("Dalibot")
+
 
 class ROLE(Enum):
     SYSTEM = "system"
@@ -35,9 +38,9 @@ class DaliBotCore:
     def __init__(self) -> None:
         # Set up OpenAI and Telegram API keys
         openai.api_key = os.environ.get("OPENAI_TOKEN")
-        telegram_bot_token = os.environ.get("TELEGRAM_TOKEN")
+        self.telegram_bot_token = os.environ.get("TELEGRAM_TOKEN")
 
-        self.application = ApplicationBuilder().token(telegram_bot_token).build()
+        self.application = ApplicationBuilder().token(self.telegram_bot_token).build()
 
     def run(self):
         start_handler = CommandHandler("start", DaliBotCore.start_func)
@@ -52,7 +55,29 @@ class DaliBotCore:
         )
         self.application.add_handler(gpt_handler)
 
-        self.application.run_polling()
+        def error_handler(update: Update, context: CallbackContext):
+            """Log the error and restart the polling."""
+            logging.error(
+                msg="Exception while handling an update:", exc_info=context.error
+            )
+            self.polling()
+
+        self.application.add_error_handler(error_handler)
+        # self.application.run_webhook(
+        #     listen="0.0.0.0",
+        #     port=int(os.environ.get('PORT', 5252)),
+        #     url_path=self.telegram_bot_token,
+        #     webhook_url=f"{os.environ.get('DALIBOT_URL')}/{self.telegram_bot_token}"
+        # )
+        self.polling()
+
+    def polling(self):
+        while True:
+            try:
+                self.application.run_polling(3)
+            except Exception as e:
+                logging.error(msg="Error while polling:", exc_info=e)
+                time.sleep(10)
 
     @staticmethod
     async def start_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -83,22 +108,32 @@ class DaliBotCore:
             system_messge = [
                 {"role": ROLE.SYSTEM.value, "content": DaliBotCore.SYSTEM_MSG}
             ]
-            cur_msg = [
-                {"role": ROLE.USER.value, "content": text}
-            ]
+            cur_msg = [{"role": ROLE.USER.value, "content": text}]
             messages = truncate_messages(DaliBotCore.msg_cache)
+
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
                 messages=system_messge + messages + cur_msg,
+                temperature=0.2,
             )
 
             response_msg = response.choices[0].message.content.strip()
             logger.info(f"token used: {response.usage.total_tokens}")
 
-            DaliBotCore.msg_cache.extend([
-                {"role": ROLE.SYSTEM.value, "name": "example_assistant", "content": response_msg},
-                {"role": ROLE.SYSTEM.value, "name": "example_user", "content": text}
-            ])
+            DaliBotCore.msg_cache.extend(
+                [
+                    {
+                        "role": ROLE.SYSTEM.value,
+                        "name": "example_assistant",
+                        "content": response_msg,
+                    },
+                    {
+                        "role": ROLE.SYSTEM.value,
+                        "name": "example_user",
+                        "content": text,
+                    },
+                ]
+            )
             return response_msg
 
         def gpt_image_response(text: str) -> str:
@@ -123,7 +158,7 @@ class DaliBotCore:
             return truncated_messages
 
         input_text = update.message.text
-        
+
         keywords = ["draw", "image", "picture", "paint"]
         if any(keyword in input_text.lower() for keyword in keywords):
             for keyword in keywords:
@@ -143,6 +178,8 @@ class DaliBotCore:
 
 
 def main():
+    # port = int(os.environ.get('PORT', 5252))
+    # app.run(debug=True, host='0.0.0.0', port=port)
     core = DaliBotCore()
     core.run()
 

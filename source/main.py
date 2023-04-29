@@ -15,7 +15,7 @@ from enum import Enum
 from typing import List
 import tiktoken
 import json
-import time
+from flask import Flask
 
 
 logging.basicConfig(
@@ -23,6 +23,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("Dalibot")
 
+# app = Flask(__name__)
 
 class ROLE(Enum):
     SYSTEM = "system"
@@ -34,6 +35,8 @@ class DaliBotCore:
     SYSTEM_MSG = "You are a helpful assistant."
     # cache
     msg_cache = []
+    # model
+    MODEL_NAME = "gpt-4"
 
     def __init__(self) -> None:
         # Set up OpenAI and Telegram API keys
@@ -49,35 +52,20 @@ class DaliBotCore:
         self.application.add_handler(reset_handler)
         system_handler = CommandHandler("system", DaliBotCore.system_func)
         self.application.add_handler(system_handler)
+        model_handler = CommandHandler("model", DaliBotCore.set_model)
+        self.application.add_handler(model_handler)
 
         gpt_handler = MessageHandler(
             filters.TEXT & (~filters.COMMAND), DaliBotCore.handle_message
         )
         self.application.add_handler(gpt_handler)
-
-        def error_handler(update: Update, context: CallbackContext):
-            """Log the error and restart the polling."""
-            logging.error(
-                msg="Exception while handling an update:", exc_info=context.error
-            )
-            self.polling()
-
-        self.application.add_error_handler(error_handler)
-        # self.application.run_webhook(
-        #     listen="0.0.0.0",
-        #     port=int(os.environ.get('PORT', 5252)),
-        #     url_path=self.telegram_bot_token,
-        #     webhook_url=f"{os.environ.get('DALIBOT_URL')}/{self.telegram_bot_token}"
-        # )
-        self.polling()
-
-    def polling(self):
-        while True:
-            try:
-                self.application.run_polling(3)
-            except Exception as e:
-                logging.error(msg="Error while polling:", exc_info=e)
-                time.sleep(10)
+        # self.application.run_polling()
+        self.application.run_webhook(
+            listen="0.0.0.0",
+            port=8843,
+            url_path="/",
+            webhook_url="dalibot-c6515.uc.r.appspot.com"
+        )
 
     @staticmethod
     async def start_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -99,12 +87,22 @@ class DaliBotCore:
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Sure.")
 
     @staticmethod
+    async def set_model(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        model = (" ").join(context.args)
+        if "4" in model:
+            DaliBotCore.MODEL_NAME = "gpt-4-0314"
+        else:
+            DaliBotCore.MODEL_NAME = "gpt-3.5-turbo"
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Changing model to {DaliBotCore.MODEL_NAME}")
+
+    @staticmethod
     async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # load encoding for model
         encoding = tiktoken.get_encoding("cl100k_base")
-        encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+        encoding = tiktoken.encoding_for_model(DaliBotCore.MODEL_NAME)
+        logger.info(update.message.text)
 
-        def gpt_turbo_response(text: str) -> str:
+        def gpt_chat_response(text: str) -> str:
             system_messge = [
                 {"role": ROLE.SYSTEM.value, "content": DaliBotCore.SYSTEM_MSG}
             ]
@@ -112,9 +110,9 @@ class DaliBotCore:
             messages = truncate_messages(DaliBotCore.msg_cache)
 
             response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
+                model=DaliBotCore.MODEL_NAME,
                 messages=system_messge + messages + cur_msg,
-                temperature=0.2,
+                temperature=1,
             )
 
             response_msg = response.choices[0].message.content.strip()
@@ -165,7 +163,7 @@ class DaliBotCore:
                 input_text = input_text.lower().replace(keyword, "")
             response = {"type": "image", "content": gpt_image_response(input_text)}
         else:
-            response = {"type": "text", "content": gpt_turbo_response(input_text)}
+            response = {"type": "text", "content": gpt_chat_response(input_text)}
 
         if response["type"] == "text":
             await context.bot.send_message(
@@ -176,11 +174,11 @@ class DaliBotCore:
                 chat_id=update.effective_chat.id, photo=response["content"]
             )
 
-
+# @app.route("/")
 def main():
-    # port = int(os.environ.get('PORT', 5252))
     # app.run(debug=True, host='0.0.0.0', port=port)
     core = DaliBotCore()
+    print("core up and running")
     core.run()
 
 

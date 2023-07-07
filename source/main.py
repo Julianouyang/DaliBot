@@ -2,12 +2,10 @@ import logging
 from telegram import Update
 from telegram.ext import (
     filters,
-    Updater,
     CommandHandler,
     MessageHandler,
     ApplicationBuilder,
     ContextTypes,
-    CallbackContext,
 )
 import openai
 import os
@@ -15,21 +13,17 @@ from enum import Enum
 from typing import List
 import tiktoken
 import json
-from flask import Flask
-
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger("Dalibot")
 
-# app = Flask(__name__)
 
 class ROLE(Enum):
     SYSTEM = "system"
     USER = "user"
     ASSISTANT = "assistant"
-
 
 class DaliBotCore:
     SYSTEM_MSG = "You are a helpful assistant."
@@ -59,13 +53,7 @@ class DaliBotCore:
             filters.TEXT & (~filters.COMMAND), DaliBotCore.handle_message
         )
         self.application.add_handler(gpt_handler)
-        # self.application.run_polling()
-        self.application.run_webhook(
-            listen="0.0.0.0",
-            port=8843,
-            url_path="/",
-            webhook_url="dalibot-c6515.uc.r.appspot.com"
-        )
+        self.application.run_polling()
 
     @staticmethod
     async def start_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -100,7 +88,6 @@ class DaliBotCore:
         # load encoding for model
         encoding = tiktoken.get_encoding("cl100k_base")
         encoding = tiktoken.encoding_for_model(DaliBotCore.MODEL_NAME)
-        logger.info(update.message.text)
 
         def gpt_chat_response(text: str) -> str:
             system_messge = [
@@ -174,9 +161,7 @@ class DaliBotCore:
                 chat_id=update.effective_chat.id, photo=response["content"]
             )
 
-# @app.route("/")
 def main():
-    # app.run(debug=True, host='0.0.0.0', port=port)
     core = DaliBotCore()
     print("core up and running")
     core.run()

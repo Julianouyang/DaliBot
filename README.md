@@ -85,4 +85,4 @@ By default, the program uses GPT4 but not everyone has it. If you want to use GP
 For more details on the APIs used in this project, please refer to the following resources:
 
 * [OpenAI API](https://platform.openai.com/docs/introduction/overview)
-* [Telegram Bot API](https://github.com/python-telegram-bot/python-telegram-bot/wiki/Extensions-%E2%80%93-Your-first-Bot)
+* [Telegram Bot API](https://github.com/python-telegram-bot/python-telegram-bot/wiki/Extensions---Your-first-Bot)

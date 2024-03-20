@@ -7,7 +7,7 @@ from telegram.ext import (
     ApplicationBuilder,
     ContextTypes,
 )
-import openai
+from openai import OpenAI
 import os
 from enum import Enum
 from typing import List
@@ -32,9 +32,12 @@ class DaliBotCore:
     # model
     MODEL_NAME = "gpt-4"
 
+    client = OpenAI(
+        api_key=os.environ.get("OPENAI_TOKEN")
+    )
+
     def __init__(self) -> None:
-        # Set up OpenAI and Telegram API keys
-        openai.api_key = os.environ.get("OPENAI_TOKEN")
+        # Set up Telegram API keys
         self.telegram_bot_token = os.environ.get("TELEGRAM_TOKEN")
 
         self.application = ApplicationBuilder().token(self.telegram_bot_token).build()
@@ -90,18 +93,19 @@ class DaliBotCore:
         encoding = tiktoken.encoding_for_model(DaliBotCore.MODEL_NAME)
 
         def gpt_chat_response(text: str) -> str:
+            client: OpenAI = DaliBotCore.client
             system_messge = [
                 {"role": ROLE.SYSTEM.value, "content": DaliBotCore.SYSTEM_MSG}
             ]
             cur_msg = [{"role": ROLE.USER.value, "content": text}]
             messages = truncate_messages(DaliBotCore.msg_cache)
 
-            response = openai.ChatCompletion.create(
+            response = client.chat.completions.create(
                 model=DaliBotCore.MODEL_NAME,
                 messages=system_messge + messages + cur_msg,
                 temperature=1,
             )
-
+            print(response)
             response_msg = response.choices[0].message.content.strip()
             logger.info(f"token used: {response.usage.total_tokens}")
 
@@ -122,8 +126,9 @@ class DaliBotCore:
             return response_msg
 
         def gpt_image_response(text: str) -> str:
-            response = openai.Image.create(prompt=text, n=1, size="512x512")
-            return response["data"][0]["url"]
+            # response = openai.Image.create(prompt=text, n=1, size="512x512")
+            # return response["data"][0]["url"]
+            ...
 
         def truncate_messages(
             messages: List[dict], max_tokens: int = 2048, max_messages: int = 8
@@ -148,7 +153,7 @@ class DaliBotCore:
         if any(keyword in input_text.lower() for keyword in keywords):
             for keyword in keywords:
                 input_text = input_text.lower().replace(keyword, "")
-            response = {"type": "image", "content": gpt_image_response(input_text)}
+            # response = {"type": "image", "content": gpt_image_response(input_text)}
         else:
             response = {"type": "text", "content": gpt_chat_response(input_text)}
 

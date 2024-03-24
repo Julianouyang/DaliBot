@@ -30,7 +30,7 @@ class DaliBotCore:
     # cache
     msg_cache = []
     # model
-    CHAT_MODEL = "gpt-4-turbo-preview"
+    CHAT_MODEL = "gpt-4-vision-preview"
     IMAGE_MODEL = "dall-e-3"
 
     client = OpenAI(
@@ -57,6 +57,10 @@ class DaliBotCore:
             filters.TEXT & (~filters.COMMAND), DaliBotCore.handle_message
         )
         self.application.add_handler(gpt_handler)
+        vision_handler = MessageHandler(
+            filters.ANIMATION & filters.PHOTO, DaliBotCore.handle_vision
+        )
+        self.application.add_handler(vision_handler)
         self.application.run_polling()
 
     @staticmethod
@@ -194,10 +198,14 @@ class DaliBotCore:
                 chat_id=update.effective_chat.id, photo=response["content"]
             )
 
+    @staticmethod
+    async def handle_vision(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        ...
+
 def main():
     core = DaliBotCore()
-    print("core up and running")
     core.run()
+    print("core up and running")
 
 
 if __name__ == "__main__":

@@ -30,7 +30,8 @@ class DaliBotCore:
     # cache
     msg_cache = []
     # model
-    MODEL_NAME = "gpt-4"
+    CHAT_MODEL = "gpt-4-turbo-preview"
+    IMAGE_MODEL = "dall-e-3"
 
     client = OpenAI(
         api_key=os.environ.get("OPENAI_TOKEN")
@@ -81,16 +82,16 @@ class DaliBotCore:
     async def set_model(update: Update, context: ContextTypes.DEFAULT_TYPE):
         model = (" ").join(context.args)
         if "4" in model:
-            DaliBotCore.MODEL_NAME = "gpt-4-0314"
+            DaliBotCore.CHAT_MODEL = "gpt-4-turbo-preview"
         else:
-            DaliBotCore.MODEL_NAME = "gpt-3.5-turbo"
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Changing model to {DaliBotCore.MODEL_NAME}")
+            DaliBotCore.CHAT_MODEL = "gpt-3.5-turbo"
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Changing model to {DaliBotCore.CHAT_MODEL}")
 
     @staticmethod
     async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # load encoding for model
         encoding = tiktoken.get_encoding("cl100k_base")
-        encoding = tiktoken.encoding_for_model(DaliBotCore.MODEL_NAME)
+        encoding = tiktoken.encoding_for_model(DaliBotCore.CHAT_MODEL)
 
         def gpt_chat_response(text: str) -> str:
             client: OpenAI = DaliBotCore.client
@@ -101,11 +102,11 @@ class DaliBotCore:
             messages = truncate_messages(DaliBotCore.msg_cache)
 
             response = client.chat.completions.create(
-                model=DaliBotCore.MODEL_NAME,
+                model=DaliBotCore.CHAT_MODEL,
                 messages=system_messge + messages + cur_msg,
                 temperature=1,
             )
-            print(response)
+
             response_msg = response.choices[0].message.content.strip()
             logger.info(f"token used: {response.usage.total_tokens}")
 
@@ -126,9 +127,15 @@ class DaliBotCore:
             return response_msg
 
         def gpt_image_response(text: str) -> str:
-            # response = openai.Image.create(prompt=text, n=1, size="512x512")
-            # return response["data"][0]["url"]
-            ...
+            client: OpenAI = DaliBotCore.client
+            response = client.images.generate(
+                model=DaliBotCore.IMAGE_MODEL,
+                prompt=text, 
+                n=1, 
+                size="1024x1024"
+            )
+            return response.data[0].url
+            
 
         def truncate_messages(
             messages: List[dict], max_tokens: int = 2048, max_messages: int = 8
@@ -148,14 +155,35 @@ class DaliBotCore:
             return truncated_messages
 
         input_text = update.message.text
+        _image_prompt = f"""Use your best judgement to analyze this user prompt,
+            and find out if user wants a text or image response.
+            If the user wants to draw or return an image, generate an image prompt for it and append @image.
+            This prompt will be sent to dall-e-3 model for image generation.
+            For example, if user asks to create a dog image, you return '@image [your_detailed_image_prompt]`.
+            If the user wants text response, just return '@noimage'.
+        """
+        check_for_image_response = DaliBotCore.client.chat.completions.create(
+            model=DaliBotCore.CHAT_MODEL,
+            messages=[
+                {"role": ROLE.SYSTEM.value, "content": _image_prompt},
+                {"role": ROLE.USER.value, "content": input_text}
+            ],
+            temperature=0.2,
+        )
 
-        keywords = ["draw", "image", "picture", "paint"]
-        if any(keyword in input_text.lower() for keyword in keywords):
-            for keyword in keywords:
-                input_text = input_text.lower().replace(keyword, "")
-            # response = {"type": "image", "content": gpt_image_response(input_text)}
+        image_result = check_for_image_response.choices[0].message.content.strip()
+        print(image_result)
+        if "@image" in image_result:
+            response = {"type": "image", "content": gpt_image_response(image_result)}
         else:
             response = {"type": "text", "content": gpt_chat_response(input_text)}
+        # keywords = ["draw", "image", "picture", "paint"]
+        # if any(keyword in input_text.lower() for keyword in keywords):
+        #     for keyword in keywords:
+        #         input_text = input_text.lower().replace(keyword, "")
+        #     response = {"type": "image", "content": gpt_image_response(input_text)}
+        # else:
+        #     response = {"type": "text", "content": gpt_chat_response(input_text)}
 
         if response["type"] == "text":
             await context.bot.send_message(

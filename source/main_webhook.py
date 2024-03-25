@@ -54,25 +54,25 @@ class DaliBotCore:
             filters.ANIMATION & filters.PHOTO, DaliBotCore.handle_vision
         )
 
-        updater = Updater(self.telegram_bot_token)
-        dp = updater.dispatcher
         # Add handlers
-        dp.add_handler(start_handler)
-        dp.add_handler(reset_handler)
-        dp.add_handler(system_handler)
-        dp.add_handler(model_handler)
-        dp.add_error_handler(DaliBotCore.error_handler)
-        dp.add_handler(gpt_handler)
-        dp.add_handler(vision_handler)
+        self.application.add_handler(start_handler)
+        self.application.add_handler(reset_handler)
+        self.application.add_handler(system_handler)
+        self.application.add_handler(model_handler)
+        self.application.add_error_handler(DaliBotCore.error_handler)
+        self.application.add_handler(gpt_handler)
+        self.application.add_handler(vision_handler)
 
         # Start the webhook
-        updater.start_webhook(
+        logger.info("running webhook")
+        self.application.run_webhook(
             listen="0.0.0.0",
-            port=int(os.environ.get('PORT')),
+            port=int(os.environ.get('PORT', "8443")),
             url_path=self.telegram_bot_token,
-            webhook_url=f"https://agile-mesa-98032-64fb6e49164f.herokuapp.com/",
+            webhook_url=f"https://agile-mesa-98032-64fb6e49164f.herokuapp.com/{self.telegram_bot_token}",
         )
-        updater.idle()
+        logger.info("webhook is up running")
+        # updater.idle()
 
     @staticmethod
     async def start_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -245,8 +245,9 @@ class DaliBotCore:
 
 def main():
     core = DaliBotCore()
+    logger.info("running core")
     core.run()
-    print("core up and running")
+    logger.info("core up and running")
 
 
 if __name__ == "__main__":

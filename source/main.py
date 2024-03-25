@@ -1,21 +1,17 @@
+import html
+import json
 import logging
-from telegram import Update
-from telegram.constants import ParseMode
-from telegram.ext import (
-    filters,
-    CommandHandler,
-    MessageHandler,
-    ApplicationBuilder,
-    ContextTypes,
-)
-from openai import OpenAI
 import os
 import traceback
-import html
 from enum import Enum
 from typing import List
+
 import tiktoken
-import json
+from openai import OpenAI
+from telegram import Update
+from telegram.constants import ParseMode
+from telegram.ext import (ApplicationBuilder, CommandHandler, ContextTypes,
+                          MessageHandler, filters)
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -28,6 +24,7 @@ class ROLE(Enum):
     USER = "user"
     ASSISTANT = "assistant"
 
+
 class DaliBotCore:
     SYSTEM_MSG = "You are a helpful assistant."
     # cache
@@ -36,9 +33,7 @@ class DaliBotCore:
     CHAT_MODEL = "gpt-4-vision-preview"
     IMAGE_MODEL = "dall-e-3"
 
-    client = OpenAI(
-        api_key=os.environ.get("OPENAI_TOKEN")
-    )
+    client = OpenAI(api_key=os.environ.get("OPENAI_TOKEN"))
 
     def __init__(self) -> None:
         # Set up Telegram API keys
@@ -65,7 +60,7 @@ class DaliBotCore:
             filters.ANIMATION & filters.PHOTO, DaliBotCore.handle_vision
         )
         self.application.add_handler(vision_handler)
-        
+
         self.application.run_polling(allowed_updates=Update.ALL_TYPES)
 
     @staticmethod
@@ -94,7 +89,10 @@ class DaliBotCore:
             DaliBotCore.CHAT_MODEL = "gpt-4-turbo-preview"
         else:
             DaliBotCore.CHAT_MODEL = "gpt-3.5-turbo"
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Changing model to {DaliBotCore.CHAT_MODEL}")
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=f"Changing model to {DaliBotCore.CHAT_MODEL}",
+        )
 
     @staticmethod
     async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -104,7 +102,9 @@ class DaliBotCore:
 
         # traceback.format_exception returns the usual python message about an exception, but as a
         # list of strings rather than a single string, so we have to join them together.
-        tb_list = traceback.format_exception(None, context.error, context.error.__traceback__)
+        tb_list = traceback.format_exception(
+            None, context.error, context.error.__traceback__
+        )
         tb_string = "".join(tb_list)
 
         # Build the message with some markup and additional information about what happened.
@@ -166,13 +166,9 @@ class DaliBotCore:
         def gpt_image_response(text: str) -> str:
             client: OpenAI = DaliBotCore.client
             response = client.images.generate(
-                model=DaliBotCore.IMAGE_MODEL,
-                prompt=text, 
-                n=1, 
-                size="1024x1024"
+                model=DaliBotCore.IMAGE_MODEL, prompt=text, n=1, size="1024x1024"
             )
             return response.data[0].url
-            
 
         def truncate_messages(
             messages: List[dict], max_tokens: int = 2048, max_messages: int = 8
@@ -203,7 +199,7 @@ class DaliBotCore:
             model=DaliBotCore.CHAT_MODEL,
             messages=[
                 {"role": ROLE.SYSTEM.value, "content": _image_prompt},
-                {"role": ROLE.USER.value, "content": input_text}
+                {"role": ROLE.USER.value, "content": input_text},
             ],
             temperature=0.2,
         )
@@ -234,6 +230,7 @@ class DaliBotCore:
     @staticmethod
     async def handle_vision(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ...
+
 
 def main():
     core = DaliBotCore()

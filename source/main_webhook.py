@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import traceback
+import base64
 from enum import Enum
 from typing import List
 
@@ -51,7 +52,7 @@ class DaliBotCore:
             filters.TEXT & (~filters.COMMAND), DaliBotCore.handle_message
         )
         vision_handler = MessageHandler(
-            filters.ANIMATION & filters.PHOTO, DaliBotCore.handle_vision
+            (filters.ANIMATION & filters.PHOTO) | filters.TEXT, DaliBotCore.handle_vision
         )
 
         # Add handlers
@@ -72,13 +73,12 @@ class DaliBotCore:
             webhook_url=f"https://agile-mesa-98032-64fb6e49164f.herokuapp.com/{self.telegram_bot_token}",
         )
         logger.info("webhook is up running")
-        # updater.idle()
 
     @staticmethod
     async def start_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text="Welcome! I'm a ChatGPT-powered Dalibot.",
+            text="Welcome! I'm a ChatGPT-powered Pancakebot.",
         )
 
     @staticmethod
@@ -221,13 +221,6 @@ class DaliBotCore:
             response = {"type": "image", "content": gpt_image_response(image_result)}
         else:
             response = {"type": "text", "content": gpt_chat_response(input_text)}
-        # keywords = ["draw", "image", "picture", "paint"]
-        # if any(keyword in input_text.lower() for keyword in keywords):
-        #     for keyword in keywords:
-        #         input_text = input_text.lower().replace(keyword, "")
-        #     response = {"type": "image", "content": gpt_image_response(input_text)}
-        # else:
-        #     response = {"type": "text", "content": gpt_chat_response(input_text)}
 
         if response["type"] == "text":
             await context.bot.send_message(
@@ -240,8 +233,36 @@ class DaliBotCore:
 
     @staticmethod
     async def handle_vision(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        ...
-
+        input_photo = update.message.photo
+        input_text = update.message.text
+        def encode_image(image_path):
+            with open(image_path, "rb") as image_file:
+                return base64.b64encode(image_file.read()).decode('utf-8')
+        base64_image = encode_image(input_photo)
+        def gpt_vision_response(image, text: str="") -> str:
+            client: OpenAI = DaliBotCore.client
+            response = client.chat.completions.create(
+                model=DaliBotCore.CHAT_MODEL, 
+                messages=[
+                    {"role": ROLE.USER.value, "content": [
+                        {
+                            "type": "text",
+                            "text": text,
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{image}"
+                            }
+                        }
+                    ]},
+                ]
+            )
+            return response.choices[0]
+        response = {"type": "text", "content": gpt_vision_response(base64_image, input_text)}
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id, text=response["content"]
+        )
 
 def main():
     core = DaliBotCore()

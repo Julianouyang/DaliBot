@@ -38,22 +38,11 @@ If Python 3 is installed, this command will output the version number. The recom
 
 Once you have both the Telegram and OpenAI tokens, you need to set them as environment variables. Here's how you can do it:
 
-#### Windows
-
-Use the `setx` command:
-
-```powershell
-setx TELEGRAM_TOKEN "your_telegram_token"
-setx OPENAI_TOKEN "your_openai_token"
-```
-
-#### MacOS / Linux
-
-Use the `export` command:
+Create a file under project root called .env and add your tokens there like:
 
 ```bash
-export TELEGRAM_TOKEN="your_telegram_token"
-export OPENAI_TOKEN="your_openai_token"
+TELEGRAM_TOKEN="your_telegram_token"
+OPENAI_TOKEN="your_openai_token"
 ```
 
 ### Building the Program

@@ -8,6 +8,7 @@ from enum import Enum
 from typing import List
 
 import tiktoken
+from dotenv import load_dotenv
 from openai import OpenAI
 from telegram import Update
 from telegram.constants import ParseMode
@@ -19,6 +20,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger("Dalibot")
 
+load_dotenv()
+HEROKU_DOMAIN = os.environ.get("HEROKU_DOMAIN")
 
 class ROLE(Enum):
     SYSTEM = "system"
@@ -66,11 +69,12 @@ class DaliBotCore:
 
         # Start the webhook
         logger.info("running webhook")
+
         self.application.run_webhook(
             listen="0.0.0.0",
             port=int(os.environ.get('PORT', "8443")),
             url_path=self.telegram_bot_token,
-            webhook_url=f"https://agile-mesa-98032-64fb6e49164f.herokuapp.com/{self.telegram_bot_token}",
+            webhook_url=f"{HEROKU_DOMAIN}/{self.telegram_bot_token}",
         )
         logger.info("webhook is up running")
 

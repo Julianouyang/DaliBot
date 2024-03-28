@@ -1,20 +1,27 @@
+import base64
 import html
 import json
 import logging
 import os
 import traceback
-import base64
 from enum import Enum
-from typing import List
 from io import BytesIO
+from typing import List
 
 import tiktoken
+
 # from dotenv import load_dotenv
 from openai import OpenAI
 from telegram import Update
 from telegram.constants import ParseMode
-from telegram.ext import (ApplicationBuilder, CommandHandler, ContextTypes,
-                          MessageHandler, filters, Updater)
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    ContextTypes,
+    MessageHandler,
+    Updater,
+    filters,
+)
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -22,6 +29,7 @@ logging.basicConfig(
 logger = logging.getLogger("Dalibot")
 
 HEROKU_DOMAIN = os.environ.get("HEROKU_DOMAIN")
+
 
 class ROLE(Enum):
     SYSTEM = "system"
@@ -53,7 +61,7 @@ class DaliBotCore:
         logger.info("running webhook")
         self.application.run_webhook(
             listen="0.0.0.0",
-            port=int(os.environ.get('PORT', "8443")),
+            port=int(os.environ.get("PORT", "8443")),
             url_path=self.telegram_bot_token,
             webhook_url=f"{HEROKU_DOMAIN}/{self.telegram_bot_token}",
         )
@@ -67,9 +75,7 @@ class DaliBotCore:
         gpt_handler = MessageHandler(
             filters.TEXT & (~filters.COMMAND), DaliBotCore.handle_message
         )
-        vision_handler = MessageHandler(
-            filters.PHOTO, DaliBotCore.handle_vision
-        )
+        vision_handler = MessageHandler(filters.PHOTO, DaliBotCore.handle_vision)
 
         # Add handlers
         self.application.add_handler(start_handler)
@@ -203,6 +209,7 @@ class DaliBotCore:
             return truncated_messages
 
         input_text = update.message.text
+        logger.info(f"input text: {input_text}")
         _image_prompt = f"""Use your best judgement to analyze this user prompt,
             and find out if user wants a text or image response.
             If the user wants to draw or return an image, generate an image prompt for it and append @image.
@@ -228,7 +235,9 @@ class DaliBotCore:
 
         if response["type"] == "text":
             await context.bot.send_message(
-                chat_id=update.effective_chat.id, text=response["content"]
+                chat_id=update.effective_chat.id,
+                text=response["content"],
+                parse_mode=ParseMode.MARKDOWN,
             )
         else:
             await context.bot.send_photo(
@@ -242,44 +251,47 @@ class DaliBotCore:
         photo_url = input_photo.file_path
 
         input_text = update.message.caption if update.message.caption else ""
-        logger.info(f"input_photo: {photo_url}")  # Log the beginning of the base64 string
+        logger.info(f"input_photo: {photo_url}")
         logger.info(f"input_text: {input_text}")
 
-        def gpt_vision_response(image, text: str="") -> str:
+        def gpt_vision_response(image, text: str = "") -> str:
             client: OpenAI = DaliBotCore.client
             response = client.chat.completions.create(
-                model=DaliBotCore.CHAT_MODEL, 
+                model=DaliBotCore.CHAT_MODEL,
                 messages=[
-                    {"role": ROLE.USER.value, "content": [
-                        {
-                            "type": "text",
-                            "text": text,
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": image
-                            }
-                        }
-                    ]},
-                ]
+                    {
+                        "role": ROLE.USER.value,
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": text,
+                            },
+                            {"type": "image_url", "image_url": {"url": image}},
+                        ],
+                    },
+                ],
             )
             return response.choices[0]
+
         choice = gpt_vision_response(photo_url, input_text)
         response = {
-            "type": "text", 
+            "type": "text",
             "content": choice.message,
-            "text": choice.message.content
+            "text": choice.message.content,
         }
         await context.bot.send_message(
-            chat_id=update.effective_chat.id, text=response["text"]
+            chat_id=update.effective_chat.id,
+            text=response["text"],
+            parse_mode=ParseMode.MARKDOWN,
         )
+
 
 def main():
     core = DaliBotCore()
     core.attach_handlers()
     logger.info("running core")
     core.run_webhook()
+    # core.run_local()
     logger.info("core up and running")
 
 

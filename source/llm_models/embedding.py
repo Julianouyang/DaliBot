@@ -1,7 +1,9 @@
-from utils import Singleton
-from typing import List
 import json
+from typing import List
+
 import tiktoken
+from utils import Singleton
+
 from .model import Model
 
 

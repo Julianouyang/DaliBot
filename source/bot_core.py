@@ -3,13 +3,22 @@ import html
 import json
 import logging
 import os
+import sys
 import traceback
 from enum import Enum
 from io import BytesIO
 from typing import List
 
 import tiktoken
-import sys
+from handlers import (
+    BotErrorCallback,
+    BotMessageCallback,
+    BotSystemModelCallback,
+    BotSystemResetCallback,
+    BotSystemStartCallback,
+    BotVisionCallback,
+)
+from llm_models import Model
 
 # from dotenv import load_dotenv
 from openai import OpenAI
@@ -23,17 +32,7 @@ from telegram.ext import (
     Updater,
     filters,
 )
-
-from utils import logger, Singleton
-from handlers import (
-    BotSystemStartCallback,
-    BotSystemResetCallback,
-    BotSystemModelCallback,
-    BotMessageCallback,
-    BotVisionCallback,
-    BotErrorCallback,
-)
-from llm_models import Model
+from utils import Singleton, logger
 
 HEROKU_DOMAIN = os.environ.get("HEROKU_DOMAIN")
 

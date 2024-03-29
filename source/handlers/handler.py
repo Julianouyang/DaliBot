@@ -1,32 +1,18 @@
-import base64
 import html
 import json
-import logging
 import os
 import traceback
-from enum import Enum
-from io import BytesIO
-from typing import List
+
+from constants import Role, system_prompts
+from llm_models import Chat, ChatHistory, Model
 
 # from dotenv import load_dotenv
-from openai import OpenAI
 from telegram import Update
 from telegram.constants import ParseMode
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    ContextTypes,
-    MessageHandler,
-    Updater,
-    filters,
-)
-
+from telegram.ext import ContextTypes
 from utils import logger
-from llm_models import Model, ChatHistory
-from constants import Role, system_prompts
 
 BOT_NAME = os.environ.get("BOT_NAME")
-client = OpenAI(api_key=os.environ.get("OPENAI_TOKEN"))
 
 
 class Handler:
@@ -75,14 +61,9 @@ class BotMessageCallback(Handler):
             cur_msg = [{"role": Role.USER.value, "content": text}]
             messages = ChatHistory.truncate_messages()
 
-            response = client.chat.completions.create(
-                model=Model().get_current_chat_model(),
+            response_msg = Chat.chat_text(
                 messages=system_messge + messages + cur_msg,
-                temperature=1,
             )
-
-            response_msg = response.choices[0].message.content.strip()
-            logger.info(f"token used: {response.usage.total_tokens}")
 
             ChatHistory.insert(
                 [
@@ -100,43 +81,27 @@ class BotMessageCallback(Handler):
             )
             return response_msg
 
-        def gpt_image_response(text: str) -> str:
-            response = client.images.generate(
-                model=Model().get_current_image_model(),
-                prompt=text,
-                n=1,
-                size="1024x1024",
-            )
-            return response.data[0].url
-
         input_text = update.message.text
         logger.info(f"input text: {input_text}")
 
-        check_for_image_response = client.chat.completions.create(
-            model=Model().get_current_chat_model(),
+        image_prompt = Chat.chat_text(
             messages=[
                 {"role": Role.SYSTEM.value, "content": system_prompts.IMAGE_PROMPT},
                 {"role": Role.USER.value, "content": input_text},
-            ],
-            temperature=0.2,
+            ]
         )
+        logger.info(f"image prompt: {image_prompt}")
 
-        image_result = check_for_image_response.choices[0].message.content.strip()
-        print(image_result)
-        if "@image" in image_result:
-            response = {"type": "image", "content": gpt_image_response(image_result)}
-        else:
-            response = {"type": "text", "content": gpt_chat_response(input_text)}
-
-        if response["type"] == "text":
-            await context.bot.send_message(
+        if "@image" in image_prompt:
+            await context.bot.send_photo(
                 chat_id=update.effective_chat.id,
-                text=response["content"],
-                parse_mode=ParseMode.MARKDOWN,
+                photo=Chat.chat_image(prompt=image_prompt),
             )
         else:
-            await context.bot.send_photo(
-                chat_id=update.effective_chat.id, photo=response["content"]
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=gpt_chat_response(input_text),
+                parse_mode=ParseMode.MARKDOWN,
             )
 
 
@@ -145,39 +110,18 @@ class BotVisionCallback(Handler):
     async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # chooser the largest photo size
         input_photo = await context.bot.get_file(update.message.photo[-1].file_id)
-        photo_url = input_photo.file_path
+        image_url = input_photo.file_path
 
         input_text = update.message.caption if update.message.caption else ""
-        logger.info(f"input_photo: {photo_url}")
+        logger.info(f"input_photo: {image_url}")
         logger.info(f"input_text: {input_text}")
 
-        def gpt_vision_response(image, text: str = "") -> str:
-            response = client.chat.completions.create(
-                model=Model().get_current_chat_model(),
-                messages=[
-                    {
-                        "role": Role.USER.value,
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": text,
-                            },
-                            {"type": "image_url", "image_url": {"url": image}},
-                        ],
-                    },
-                ],
-            )
-            return response.choices[0]
-
-        choice = gpt_vision_response(photo_url, input_text)
-        response = {
-            "type": "text",
-            "content": choice.message,
-            "text": choice.message.content,
-        }
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text=response["text"],
+            text=Chat.chat_vision(
+                caption=input_text,
+                image_url=image_url,
+            ),
             parse_mode=ParseMode.MARKDOWN,
         )
 

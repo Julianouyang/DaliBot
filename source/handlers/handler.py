@@ -33,7 +33,7 @@ class BotSystemStartCallback(Handler):
 class BotSystemResetCallback(Handler):
     @staticmethod
     async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        # DaliBotCore.msg_cache = []
+        ChatHistory.reset()
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Reset..")
 
 
@@ -54,31 +54,34 @@ class BotSystemModelCallback(Handler):
 class BotMessageCallback(Handler):
     @staticmethod
     async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        def gpt_chat_response(text: str) -> str:
-            system_messge = [
-                {"role": Role.SYSTEM.value, "content": system_prompts.DEFAULT_PROMPT}
-            ]
-            cur_msg = [{"role": Role.USER.value, "content": text}]
-            messages = ChatHistory.truncate_messages()
-
-            response_msg = Chat.chat_text(
-                messages=system_messge + messages + cur_msg,
-            )
-
+        def gpt_chat_response(text: str, chat) -> str:
+            username = f"{chat.first_name} {chat.last_name}"
+            # the conversation sent to openai should be different from sent to cache
+            # 1. save token
+            # 2. store username, timestamp etc.
             ChatHistory.insert(
                 [
                     {
-                        "role": Role.SYSTEM.value,
-                        "name": "example_assistant",
-                        "content": response_msg,
-                    },
-                    {
-                        "role": Role.SYSTEM.value,
-                        "name": "example_user",
+                        "role": Role.USER.value,
+                        # "name": username,
                         "content": text,
-                    },
+                    }
                 ]
             )
+            messages = ChatHistory.truncate_messages()
+            response_msg = Chat.chat_text(
+                messages=messages,
+            )
+            ChatHistory.insert(
+                [
+                    {
+                        "role": Role.ASSISTANT.value,
+                        # "name": "example_assistant",
+                        "content": response_msg,
+                    }
+                ]
+            )
+
             return response_msg
 
         input_text = update.message.text
@@ -100,7 +103,7 @@ class BotMessageCallback(Handler):
         else:
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
-                text=gpt_chat_response(input_text),
+                text=gpt_chat_response(input_text, update.message.chat),
                 parse_mode=ParseMode.MARKDOWN,
             )
 

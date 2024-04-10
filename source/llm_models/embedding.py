@@ -68,7 +68,11 @@ class ChatHistory(metaclass=Singleton):
         # with open(f"chat_history_{timestamp}.json", "w") as f:
         #     json.dump(ChatHistory.long_msgs, f, indent=4)
         # Create an S3 resource
-        s3 = boto3.client("s3")
+        s3 = boto3.client(
+            "s3",
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+        )
 
         # Your S3 bucket name
         bucket_name = "bot-chat-dali"

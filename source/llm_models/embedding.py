@@ -1,15 +1,18 @@
 import json
+import os
 from typing import List
 from datetime import datetime
 import tiktoken
 from utils import Singleton
-
+import boto3
 from .model import Model
 from constants import Role, system_prompts
 
-SHORT_MSG_LIMIT = 12
-LONG_MSG_LIMIT = 36
+SHORT_MSG_LIMIT = 20
+LONG_MSG_LIMIT = 20
 SYSTEM_MESSAGE = {"role": Role.SYSTEM.value, "content": system_prompts.DEFAULT_PROMPT}
+
+BOT_NAME = os.environ.get("BOT_NAME")
 
 
 class ChatMessage:
@@ -62,8 +65,18 @@ class ChatHistory(metaclass=Singleton):
     def convert_to_json_and_reset():
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         # Convert messages to JSON and save to file
-        with open(f"chat_history_{timestamp}.json", "w") as f:
-            json.dump(ChatHistory.long_msgs, f, indent=4)
+        # with open(f"chat_history_{timestamp}.json", "w") as f:
+        #     json.dump(ChatHistory.long_msgs, f, indent=4)
+        # Create an S3 resource
+        s3 = boto3.client("s3")
+
+        # Your S3 bucket name
+        bucket_name = "bot-chat-dali"
+
+        # List objects within the bucket
+        filename = f"data/{BOT_NAME}_history_{timestamp}.json"
+        msgs_json = json.dumps(ChatHistory.long_msgs, indent=4)
+        s3.put_object(Bucket=bucket_name, Key=filename, Body=msgs_json)
 
         # Reset the counter and messages
         ChatHistory.long_counter = 0

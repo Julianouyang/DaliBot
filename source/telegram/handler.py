@@ -2,11 +2,11 @@ import html
 import json
 import os
 import traceback
-
-from constants import Role, system_prompts
-from llm_models import OpenAIChatInterface, ChatHistory, Model
-from chat import ChatMessage
 from datetime import datetime
+
+from chat import ChatMessage
+from constants import Role, system_prompts
+from llm_models import ChatHistory, Model, OpenAIChatInterface
 # from dotenv import load_dotenv
 from telegram import Update
 from telegram.constants import ParseMode
@@ -62,10 +62,10 @@ class BotMessageCallback(Handler):
                 role=Role.USER.value,
                 username=username,
                 content=text,
-                timestamp=datetime.now().strftime("%Y%m%d_%H%M%S")
+                timestamp=datetime.now().strftime("%Y%m%d_%H%M%S"),
             )
             ChatHistory.insert(user_msg)
-            
+
             messages = ChatHistory.truncate_messages()
             response_msg = OpenAIChatInterface.chat_text(
                 messages=messages,
@@ -74,7 +74,7 @@ class BotMessageCallback(Handler):
                 role=Role.ASSISTANT.value,
                 username="Assistant",
                 content=text,
-                timestamp=datetime.now().strftime("%Y%m%d_%H%M%S")
+                timestamp=datetime.now().strftime("%Y%m%d_%H%M%S"),
             )
             ChatHistory.insert(assistant_msg)
 

@@ -1,5 +1,6 @@
 from constants import Role
 
+
 class ChatMessage:
     def __init__(self, role=None, username="", content="", timestamp=""):
         self.role: Role = role

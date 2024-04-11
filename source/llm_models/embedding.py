@@ -1,13 +1,15 @@
 import json
 import os
-from typing import List
 from datetime import datetime
-import tiktoken
-from utils import Singleton
+from typing import List
+
 import boto3
-from .model import Model
-from constants import Role, system_prompts
+import tiktoken
 from chat import ChatMessage
+from constants import Role, system_prompts
+from utils import Singleton
+
+from .model import Model
 
 SHORT_MSG_LIMIT = 20
 LONG_MSG_LIMIT = 20
@@ -82,13 +84,17 @@ class ChatHistory(metaclass=Singleton):
         message: ChatMessage
         for message in reversed(ChatHistory.short_msgs):
             if message.role != Role.SYSTEM.value:
-                total_tokens += len(encoding.encode(json.dumps(message.jsonify_openai())))
+                total_tokens += len(
+                    encoding.encode(json.dumps(message.jsonify_openai()))
+                )
                 total_messages += 1
                 if total_tokens <= max_tokens and total_messages < SHORT_MSG_LIMIT:
                     truncated_messages.insert(0, message.jsonify_openai())
                 else:
                     break
-        truncated_messages.insert(0, ChatMessage(Role.SYSTEM.value, "System", system_prompts).jsonify_openai())
+        truncated_messages.insert(
+            0, ChatMessage(Role.SYSTEM.value, "System", system_prompts).jsonify_openai()
+        )
         # assign back to ChatHistory.short_msgs
         ChatHistory.short_msgs = truncated_messages
         return truncated_messages

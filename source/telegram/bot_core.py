@@ -10,28 +10,15 @@ from io import BytesIO
 from typing import List
 
 import tiktoken
-from telegram import (
-    BotErrorCallback,
-    BotMessageCallback,
-    BotSystemModelCallback,
-    BotSystemResetCallback,
-    BotSystemStartCallback,
-    BotVisionCallback,
-)
 from llm_models import Model
-
 # from dotenv import load_dotenv
 from openai import OpenAI
-from telegram import Update
+from telegram import (BotErrorCallback, BotMessageCallback,
+                      BotSystemModelCallback, BotSystemResetCallback,
+                      BotSystemStartCallback, BotVisionCallback, Update)
 from telegram.constants import ParseMode
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    ContextTypes,
-    MessageHandler,
-    Updater,
-    filters,
-)
+from telegram.ext import (ApplicationBuilder, CommandHandler, ContextTypes,
+                          MessageHandler, Updater, filters)
 from utils import Singleton, logger
 
 HEROKU_DOMAIN = os.environ.get("HEROKU_DOMAIN")

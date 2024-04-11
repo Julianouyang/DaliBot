@@ -1,8 +1,3 @@
-from .handler import (
-    BotErrorCallback,
-    BotMessageCallback,
-    BotSystemModelCallback,
-    BotSystemResetCallback,
-    BotSystemStartCallback,
-    BotVisionCallback,
-)
+from .handler import (BotErrorCallback, BotMessageCallback,
+                      BotSystemModelCallback, BotSystemResetCallback,
+                      BotSystemStartCallback, BotVisionCallback)

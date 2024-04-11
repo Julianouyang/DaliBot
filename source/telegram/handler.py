@@ -4,8 +4,9 @@ import os
 import traceback
 
 from constants import Role, system_prompts
-from llm_models import Chat, ChatHistory, Model
-
+from llm_models import OpenAIChatInterface, ChatHistory, Model
+from chat import ChatMessage
+from datetime import datetime
 # from dotenv import load_dotenv
 from telegram import Update
 from telegram.constants import ParseMode
@@ -56,38 +57,33 @@ class BotMessageCallback(Handler):
     async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         def gpt_chat_response(text: str, chat) -> str:
             username = f"{chat.first_name} {chat.last_name}"
-            # the conversation sent to openai should be different from sent to cache
-            # 1. save token
-            # 2. store username, timestamp etc.
-            ChatHistory.insert(
-                [
-                    {
-                        "role": Role.USER.value,
-                        # "name": username,
-                        "content": text,
-                    }
-                ]
+
+            user_msg = ChatMessage(
+                role=Role.USER.value,
+                username=username,
+                content=text,
+                timestamp=datetime.now().strftime("%Y%m%d_%H%M%S")
             )
+            ChatHistory.insert(user_msg)
+            
             messages = ChatHistory.truncate_messages()
-            response_msg = Chat.chat_text(
+            response_msg = OpenAIChatInterface.chat_text(
                 messages=messages,
             )
-            ChatHistory.insert(
-                [
-                    {
-                        "role": Role.ASSISTANT.value,
-                        # "name": "example_assistant",
-                        "content": response_msg,
-                    }
-                ]
+            assistant_msg = ChatMessage(
+                role=Role.ASSISTANT.value,
+                username="Assistant",
+                content=text,
+                timestamp=datetime.now().strftime("%Y%m%d_%H%M%S")
             )
+            ChatHistory.insert(assistant_msg)
 
             return response_msg
 
         input_text = update.message.text
         logger.info(f"input text: {input_text}")
 
-        image_prompt = Chat.chat_text(
+        image_prompt = OpenAIChatInterface.chat_text(
             messages=[
                 {"role": Role.SYSTEM.value, "content": system_prompts.IMAGE_PROMPT},
                 {"role": Role.USER.value, "content": input_text},
@@ -98,7 +94,7 @@ class BotMessageCallback(Handler):
         if "@image" in image_prompt:
             await context.bot.send_photo(
                 chat_id=update.effective_chat.id,
-                photo=Chat.chat_image(prompt=image_prompt),
+                photo=OpenAIChatInterface.chat_image(prompt=image_prompt),
             )
         else:
             await context.bot.send_message(
@@ -121,7 +117,7 @@ class BotVisionCallback(Handler):
 
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text=Chat.chat_vision(
+            text=OpenAIChatInterface.chat_vision(
                 caption=input_text,
                 image_url=image_url,
             ),

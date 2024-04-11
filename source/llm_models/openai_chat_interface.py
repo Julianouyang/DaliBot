@@ -9,7 +9,7 @@ from .model import Model
 client = OpenAI(api_key=os.environ.get("OPENAI_TOKEN"))
 
 
-class Chat:
+class OpenAIChatInterface:
     @staticmethod
     def chat_text(*args, **kwargs):
         model = kwargs.get("model", Model().get_current_chat_model())
@@ -60,4 +60,5 @@ class Chat:
                 },
             ],
         )
+        logger.info(f"token used: {response.usage.total_tokens}")
         return response.choices[0].message.content

@@ -10,7 +10,7 @@ from io import BytesIO
 from typing import List
 
 import tiktoken
-from handlers import (
+from telegram import (
     BotErrorCallback,
     BotMessageCallback,
     BotSystemModelCallback,

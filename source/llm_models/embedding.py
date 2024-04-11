@@ -7,35 +7,12 @@ from utils import Singleton
 import boto3
 from .model import Model
 from constants import Role, system_prompts
+from chat import ChatMessage
 
 SHORT_MSG_LIMIT = 20
 LONG_MSG_LIMIT = 20
-SYSTEM_MESSAGE = {"role": Role.SYSTEM.value, "content": system_prompts.DEFAULT_PROMPT}
 
 BOT_NAME = os.environ.get("BOT_NAME")
-
-
-class ChatMessage:
-    def __init__(self, role, username, content, timestamp):
-        self.role: Role = role
-        self.username = username
-        self.content = content
-        self.timestamp = timestamp
-
-    def jsonify(self):
-        return {
-            "role": self.role.value,
-            "username": self.username,
-            "content": self.content,
-            "timestamp": self.timestamp,
-        }
-
-    def jsonify_openai(self):
-        """Return the json needed by openai"""
-        return {
-            "role": self.role.value,
-            "content": self.content,
-        }
 
 
 class ChatHistory(metaclass=Singleton):
@@ -50,13 +27,13 @@ class ChatHistory(metaclass=Singleton):
         pass
 
     @staticmethod
-    def insert(new_message):
-        ChatHistory.short_msgs.extend(new_message)
+    def insert(new_message: ChatMessage):
+        ChatHistory.short_msgs.append(new_message)
         ChatHistory.short_counter += 1
         if ChatHistory.short_counter >= SHORT_MSG_LIMIT:
             ChatHistory.truncate_messages()
 
-        ChatHistory.long_msgs.extend(new_message)
+        ChatHistory.long_msgs.append(new_message)
         ChatHistory.long_counter += 1
         if ChatHistory.long_counter >= LONG_MSG_LIMIT:
             ChatHistory.convert_to_json_and_reset()
@@ -89,7 +66,7 @@ class ChatHistory(metaclass=Singleton):
         # TODO: Add logic to ingest the JSON file into Elasticsearch
 
     @staticmethod
-    def truncate_messages(max_tokens: int = 2560) -> List[dict]:
+    def truncate_messages(max_tokens: int = 5120) -> List[dict]:
         """Truncate messages if exceed the limit.
         However, this should not truncate system prompt.
         """
@@ -102,15 +79,16 @@ class ChatHistory(metaclass=Singleton):
         encoding = tiktoken.encoding_for_model(Model().get_current_chat_model())
 
         # avoid modify system prompt
+        message: ChatMessage
         for message in reversed(ChatHistory.short_msgs):
-            if message["role"] != Role.SYSTEM.value:
-                total_tokens += len(encoding.encode(json.dumps(message)))
+            if message.role != Role.SYSTEM.value:
+                total_tokens += len(encoding.encode(json.dumps(message.jsonify_openai())))
                 total_messages += 1
                 if total_tokens <= max_tokens and total_messages < SHORT_MSG_LIMIT:
-                    truncated_messages.insert(0, message)
+                    truncated_messages.insert(0, message.jsonify_openai())
                 else:
                     break
-        truncated_messages.insert(0, SYSTEM_MESSAGE)
+        truncated_messages.insert(0, ChatMessage(Role.SYSTEM.value, "System", system_prompts).jsonify_openai())
         # assign back to ChatHistory.short_msgs
         ChatHistory.short_msgs = truncated_messages
         return truncated_messages

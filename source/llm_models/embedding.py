@@ -12,7 +12,7 @@ from utils import Singleton
 from .model import Model
 
 SHORT_MSG_LIMIT = 20
-LONG_MSG_LIMIT = 8
+LONG_MSG_LIMIT = 6
 
 BOT_NAME = os.environ.get("BOT_NAME")
 
@@ -58,7 +58,9 @@ class ChatHistory(metaclass=Singleton):
 
         # List objects within the bucket
         filename = f"data/{BOT_NAME}_history_{timestamp}.json"
-        msgs_json = json.dumps(ChatHistory.long_msgs, indent=4)
+        msgs_json = json.dumps(
+            [m.jsonify_full() for m in ChatHistory.long_msgs], indent=4
+        )
         s3.put_object(Bucket=bucket_name, Key=filename, Body=msgs_json)
 
         # Reset the counter and messages
@@ -83,21 +85,21 @@ class ChatHistory(metaclass=Singleton):
         # avoid modify system prompt
         message: ChatMessage
         for message in reversed(ChatHistory.short_msgs):
-            if message.role != Role.SYSTEM.value:
+            if message.role != Role.SYSTEM:
                 total_tokens += len(
                     encoding.encode(json.dumps(message.jsonify_openai()))
                 )
                 total_messages += 1
                 if total_tokens <= max_tokens and total_messages < SHORT_MSG_LIMIT:
-                    truncated_messages.insert(0, message.jsonify_openai())
+                    truncated_messages.insert(0, message)
                 else:
                     break
         truncated_messages.insert(
-            0, ChatMessage(Role.SYSTEM.value, "System", system_prompts).jsonify_openai()
+            0, ChatMessage(Role.SYSTEM, "System", system_prompts.DEFAULT_PROMPT)
         )
         # assign back to ChatHistory.short_msgs
         ChatHistory.short_msgs = truncated_messages
-        return truncated_messages
+        return [m.jsonify_openai() for m in ChatHistory.short_msgs]
 
     def reset():
         ...

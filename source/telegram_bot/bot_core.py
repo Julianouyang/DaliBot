@@ -1,24 +1,13 @@
-import base64
-import html
-import json
-import logging
 import os
-import sys
-import traceback
-from enum import Enum
-from io import BytesIO
-from typing import List
 
-import tiktoken
 from llm_models import Model
-# from dotenv import load_dotenv
-from openai import OpenAI
-from telegram import (BotErrorCallback, BotMessageCallback,
+
+from telegram_bot import (BotErrorCallback, BotMessageCallback,
                       BotSystemModelCallback, BotSystemResetCallback,
-                      BotSystemStartCallback, BotVisionCallback, Update)
-from telegram.constants import ParseMode
-from telegram.ext import (ApplicationBuilder, CommandHandler, ContextTypes,
-                          MessageHandler, Updater, filters)
+                      BotSystemStartCallback, BotVisionCallback)
+from telegram import Update
+from telegram.ext import (ApplicationBuilder, CommandHandler,
+                          MessageHandler, filters)
 from utils import Singleton, logger
 
 HEROKU_DOMAIN = os.environ.get("HEROKU_DOMAIN")

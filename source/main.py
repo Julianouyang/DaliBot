@@ -1,6 +1,6 @@
 import sys
 
-from telegram.bot_core import BotCore
+from telegram_bot import BotCore
 from utils import logger
 
 # from dotenv import load_dotenv

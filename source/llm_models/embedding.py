@@ -12,7 +12,7 @@ from utils import Singleton
 from .model import Model
 
 SHORT_MSG_LIMIT = 20
-LONG_MSG_LIMIT = 20
+LONG_MSG_LIMIT = 8
 
 BOT_NAME = os.environ.get("BOT_NAME")
 
@@ -63,7 +63,7 @@ class ChatHistory(metaclass=Singleton):
 
         # Reset the counter and messages
         ChatHistory.long_counter = 0
-        ChatHistory.long_msgs = 0
+        ChatHistory.long_msgs = []
 
         # TODO: Add logic to ingest the JSON file into Elasticsearch
 

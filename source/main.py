@@ -3,7 +3,7 @@ import sys
 from telegram_bot import BotCore
 from utils import logger
 
-# from dotenv import load_dotenv
+from dotenv import load_dotenv
 
 
 def main(args=None):
@@ -16,6 +16,7 @@ def main(args=None):
 
     try:
         if "--use-local" in args:
+            load_dotenv()
             core.run_local()
         else:
             core.run_webhook()

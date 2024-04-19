@@ -35,7 +35,7 @@ class BotCore(metaclass=Singleton):
         self.application.run_webhook(
             listen="0.0.0.0",
             port=int(os.environ.get("PORT", "8443")),
-            url_path=self.telegram_bot_token,
+            url_path=self.telegram_bot_token,  # test leave it empty
             webhook_url=f"{HEROKU_DOMAIN}/{self.telegram_bot_token}",
         )
 

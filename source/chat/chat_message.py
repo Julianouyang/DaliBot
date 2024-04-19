@@ -1,12 +1,28 @@
 from constants import Role
+from datetime import datetime
+from constants import ChatType
 
 
 class ChatMessage:
-    def __init__(self, role=None, username="", content="", timestamp=""):
-        self.role: Role = role
-        self.username = username
-        self.content = content
-        self.timestamp = timestamp
+    """
+    Arguments:
+        role
+        username
+        content
+        timestamp
+        type
+        image_url
+    """
+
+    def __init__(self, **kwargs):
+        self.role: Role = kwargs.get("role", None)
+        self.username = kwargs.get("username", "")
+        self.content = kwargs.get("content", "")
+        self.timestamp = kwargs.get(
+            "timestamp", datetime.now().strftime("%Y%m%d_%H%M%S")
+        )
+        self.type = kwargs.get("type", ChatType.TEXT).value
+        self.image_url = kwargs.get("image_url", "")
 
     def jsonify_full(self):
         return {
@@ -14,6 +30,8 @@ class ChatMessage:
             "username": self.username,
             "content": self.content,
             "timestamp": self.timestamp,
+            "type": self.type,
+            "image_url": self.image_url,
         }
 
     def jsonify_openai(self):

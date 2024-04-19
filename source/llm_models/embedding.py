@@ -11,7 +11,7 @@ from utils import Singleton
 
 from .model import Model
 
-SHORT_MSG_LIMIT = 20
+SHORT_MSG_LIMIT = 30
 
 BOT_NAME = os.environ.get("BOT_NAME")
 BUCKET = "bot-chat-dali"
@@ -46,7 +46,7 @@ class ChatHistory(metaclass=Singleton):
         timestamp = datetime.now().strftime("%Y%m%d")
 
         # List objects within the bucket
-        filename = f"{BOT_NAME}/chat_{timestamp}.json"
+        filename = f"{BOT_NAME}/{BOT_NAME}_chat_{timestamp}.json"
         new_msgs_json = json.dumps([m.jsonify_full() for m in msgs], indent=4)
         try:
             # Try to download the existing file from S3
@@ -87,7 +87,12 @@ class ChatHistory(metaclass=Singleton):
                 else:
                     break
         truncated_messages.insert(
-            0, ChatMessage(Role.SYSTEM, "System", system_prompts.DEFAULT_PROMPT)
+            0,
+            ChatMessage(
+                role=Role.SYSTEM,
+                username="System",
+                content=system_prompts.DEFAULT_PROMPT,
+            ),
         )
 
         self.short_msgs = truncated_messages

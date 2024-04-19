@@ -5,7 +5,7 @@ import traceback
 from datetime import datetime
 
 from chat import ChatMessage
-from constants import Role, system_prompts
+from constants import Role, ChatType, system_prompts
 from llm_models import ChatHistory, Model, OpenAIChatInterface
 from telegram import Update
 from telegram.constants import ParseMode
@@ -13,6 +13,8 @@ from telegram.ext import ContextTypes
 from utils import logger
 
 BOT_NAME = os.environ.get("BOT_NAME")
+
+chatHistory = ChatHistory.getInstance()
 
 
 class Handler:
@@ -55,14 +57,12 @@ class BotMessageCallback(Handler):
     @staticmethod
     async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         def gpt_chat_response(text: str, chat) -> str:
-            chatHistory = ChatHistory.getInstance()
             username = f"{chat.first_name} {chat.last_name}"
 
             user_msg = ChatMessage(
                 role=Role.USER,
                 username=username,
                 content=text,
-                timestamp=datetime.now().strftime("%Y%m%d_%H%M%S"),
             )
             chatHistory.insert(user_msg)
 
@@ -74,7 +74,6 @@ class BotMessageCallback(Handler):
                 role=Role.ASSISTANT,
                 username="Assistant",
                 content=response_msg,
-                timestamp=datetime.now().strftime("%Y%m%d_%H%M%S"),
             )
             chatHistory.insert(assistant_msg)
             # push msgs to s3
@@ -93,9 +92,19 @@ class BotMessageCallback(Handler):
         logger.info(f"image prompt: {image_prompt}")
 
         if "@image" in image_prompt:
+            image_url = OpenAIChatInterface.chat_image(prompt=image_prompt)
+            assistant_msg = ChatMessage(
+                role=Role.ASSISTANT,
+                username="Assistant-dalle",
+                type=ChatType.IMAGE,
+                content=input_text,
+                image_url=image_url,
+            )
+            chatHistory.insert(assistant_msg)
+            chatHistory.push_msgs_to_s3([assistant_msg])
             await context.bot.send_photo(
                 chat_id=update.effective_chat.id,
-                photo=OpenAIChatInterface.chat_image(prompt=image_prompt),
+                photo=image_url,
             )
         else:
             await context.bot.send_message(
@@ -108,6 +117,8 @@ class BotMessageCallback(Handler):
 class BotVisionCallback(Handler):
     @staticmethod
     async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        chat = update.message.chat
+        username = f"{chat.first_name} {chat.last_name}"
         # chooser the largest photo size
         input_photo = await context.bot.get_file(update.message.photo[-1].file_id)
         image_url = input_photo.file_path
@@ -115,13 +126,29 @@ class BotVisionCallback(Handler):
         input_text = update.message.caption if update.message.caption else ""
         logger.info(f"input_photo: {image_url}")
         logger.info(f"input_text: {input_text}")
-
+        user_msg = ChatMessage(
+            role=Role.USER,
+            username=username,
+            content=input_text,
+            type=ChatType.IMAGE,
+            image_url=image_url,
+        )
+        chatHistory.insert(user_msg)
+        out_text = OpenAIChatInterface.chat_vision(
+            caption=input_text,
+            image_url=image_url,
+        )
+        assistant_msg = ChatMessage(
+            role=Role.ASSISTANT,
+            username="Assistant",
+            type=ChatType.TEXT,
+            content=out_text,
+        )
+        chatHistory.insert(assistant_msg)
+        chatHistory.push_msgs_to_s3([user_msg, assistant_msg])
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text=OpenAIChatInterface.chat_vision(
-                caption=input_text,
-                image_url=image_url,
-            ),
+            text=out_text,
             parse_mode=ParseMode.MARKDOWN,
         )
 

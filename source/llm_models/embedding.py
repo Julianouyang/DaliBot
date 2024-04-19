@@ -12,65 +12,59 @@ from utils import Singleton
 from .model import Model
 
 SHORT_MSG_LIMIT = 20
-LONG_MSG_LIMIT = 6
 
 BOT_NAME = os.environ.get("BOT_NAME")
-
+BUCKET = "bot-chat-dali"
 
 class ChatHistory(metaclass=Singleton):
-    short_msgs = []
-    long_msgs = []
-    # The limit for appending messages to current conversation
-    short_counter = 0
-    # The limit for writing out json files and reset
-    long_counter = 0
+    _instance = None
+
+    @classmethod
+    def getInstance(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
 
     def __init__(self) -> None:
-        pass
+        self.short_msgs = []
+        self.short_counter = 0
 
-    @staticmethod
-    def insert(new_message: ChatMessage):
-        ChatHistory.short_msgs.append(new_message)
-        ChatHistory.short_counter += 1
-        if ChatHistory.short_counter >= SHORT_MSG_LIMIT:
-            ChatHistory.truncate_messages()
-
-        ChatHistory.long_msgs.append(new_message)
-        ChatHistory.long_counter += 1
-        if ChatHistory.long_counter >= LONG_MSG_LIMIT:
-            ChatHistory.convert_to_json_and_reset()
-
-    @staticmethod
-    def convert_to_json_and_reset():
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        # Convert messages to JSON and save to file
-        # with open(f"chat_history_{timestamp}.json", "w") as f:
-        #     json.dump(ChatHistory.long_msgs, f, indent=4)
-        # Create an S3 resource
-        s3 = boto3.client(
+        self.s3:boto3.client = boto3.client(
             "s3",
             aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
             aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
         )
 
-        # Your S3 bucket name
-        bucket_name = "bot-chat-dali"
+    def insert(self, new_message: ChatMessage):
+        self.short_msgs.append(new_message)
+        self.short_counter += 1
+        if self.short_counter >= SHORT_MSG_LIMIT:
+            self.truncate_messages()
+
+    def push_msgs_to_s3(self, msgs: List[ChatMessage]):
+        timestamp = datetime.now().strftime("%Y%m%d")
 
         # List objects within the bucket
-        filename = f"data/{BOT_NAME}_history_{timestamp}.json"
-        msgs_json = json.dumps(
-            [m.jsonify_full() for m in ChatHistory.long_msgs], indent=4
+        filename = f"{BOT_NAME}/chat_{timestamp}.json"
+        new_msgs_json = json.dumps(
+            [m.jsonify_full() for m in msgs], indent=4
         )
-        s3.put_object(Bucket=bucket_name, Key=filename, Body=msgs_json)
-
-        # Reset the counter and messages
-        ChatHistory.long_counter = 0
-        ChatHistory.long_msgs = []
+        try:
+            # Try to download the existing file from S3
+            response = self.s3.get_object(Bucket=BUCKET, Key=filename)
+            existing_data = response['Body'].read().decode('utf-8')
+            combined_data = json.loads(existing_data)
+            combined_data.extend(json.loads(new_msgs_json))  # Append new data
+            final_data = json.dumps(combined_data, indent=4)
+        except self.s3.exceptions.NoSuchKey:
+            # If the file does not exist, use new data as the final data
+            final_data = new_msgs_json
+        self.s3.put_object(Bucket=BUCKET, Key=filename, Body=final_data)
 
         # TODO: Add logic to ingest the JSON file into Elasticsearch
 
-    @staticmethod
-    def truncate_messages(max_tokens: int = 5120) -> List[dict]:
+    
+    def truncate_messages(self, max_tokens: int = 5120) -> List[dict]:
         """Truncate messages if exceed the limit.
         However, this should not truncate system prompt.
         """
@@ -84,7 +78,7 @@ class ChatHistory(metaclass=Singleton):
 
         # avoid modify system prompt
         message: ChatMessage
-        for message in reversed(ChatHistory.short_msgs):
+        for message in reversed(self.short_msgs):
             if message.role != Role.SYSTEM:
                 total_tokens += len(
                     encoding.encode(json.dumps(message.jsonify_openai()))
@@ -97,10 +91,11 @@ class ChatHistory(metaclass=Singleton):
         truncated_messages.insert(
             0, ChatMessage(Role.SYSTEM, "System", system_prompts.DEFAULT_PROMPT)
         )
-        # assign back to ChatHistory.short_msgs
-        ChatHistory.short_msgs = truncated_messages
-        return [m.jsonify_openai() for m in ChatHistory.short_msgs]
 
-    def reset():
-        ...
-        # if long_msgs has sth, dump to json first
+        self.short_msgs = truncated_messages
+        self.short_counter = len(self.short_msgs)
+        return [m.jsonify_openai() for m in self.short_msgs]
+
+    def reset(self):
+        self.short_msgs = []
+        self.short_counter = 0

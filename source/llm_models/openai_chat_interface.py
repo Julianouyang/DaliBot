@@ -22,7 +22,6 @@ class OpenAIChatInterface:
             temperature=temperature,
         )
         logger.info(f"token used: {response.usage.total_tokens}")
-        # send to DB
         return response.choices[0].message.content.strip()
 
     @staticmethod

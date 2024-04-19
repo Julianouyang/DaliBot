@@ -8,7 +8,6 @@ from chat import ChatMessage
 from constants import Role, system_prompts
 from llm_models import ChatHistory, Model, OpenAIChatInterface
 
-# from dotenv import load_dotenv
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
@@ -35,7 +34,7 @@ class BotSystemStartCallback(Handler):
 class BotSystemResetCallback(Handler):
     @staticmethod
     async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        ChatHistory.reset()
+        ChatHistory.getInstance().reset()
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Reset..")
 
 
@@ -57,6 +56,7 @@ class BotMessageCallback(Handler):
     @staticmethod
     async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         def gpt_chat_response(text: str, chat) -> str:
+            chatHistory = ChatHistory.getInstance()
             username = f"{chat.first_name} {chat.last_name}"
 
             user_msg = ChatMessage(
@@ -65,9 +65,9 @@ class BotMessageCallback(Handler):
                 content=text,
                 timestamp=datetime.now().strftime("%Y%m%d_%H%M%S"),
             )
-            ChatHistory.insert(user_msg)
+            chatHistory.insert(user_msg)
 
-            messages = ChatHistory.truncate_messages()
+            messages = chatHistory.truncate_messages()
             response_msg = OpenAIChatInterface.chat_text(
                 messages=messages,
             )
@@ -77,8 +77,9 @@ class BotMessageCallback(Handler):
                 content=response_msg,
                 timestamp=datetime.now().strftime("%Y%m%d_%H%M%S"),
             )
-            ChatHistory.insert(assistant_msg)
-
+            chatHistory.insert(assistant_msg)
+            # push msgs to s3
+            chatHistory.push_msgs_to_s3([user_msg, assistant_msg])
             return response_msg
 
         input_text = update.message.text

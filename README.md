@@ -55,19 +55,30 @@ pip3 install -r requirements.txt
 
 Depends on your local machine, it could be *pip* instead of *pip3*.
 
-### Running the Program
+### Running the App Locally
 
 Execute the following command:
 
 ```bash
-python3 source/main.py
+python3 source/main.py [--use-local]
 ```
 
 Depends on your local machine, it could be *python* instead of *python3*. Your DaliBot should now be up and running!
 
+Make sure your bot runs locally before deploying it.
+
+### Deploying the App
+
+If everything looks fine when you run the app locally, you may consider deploying it so that the Bot can be accessed 24/7. 
+
+Heroku is used to deploy the app but other cloud providers like AWS should work out of the box. Go to www.heroku.com and follow the instructions there. Eventually, you add your heroku domain as an environment variable like this:
+
+```bash
+HEROKU_DOMAIN="https://example.herokuapp.com"
+
 ## Troubleshoot
 
-By default, the program uses GPT4 but not everyone has it. If you want to use GPT3.5, search for "MODEL_NAME" and replace the model to whatever available to you.
+You can debug the app in vscode if anything goes wrong. The debug configuration is in .vscode/launch.json and is ready for use.
 
 ## API References
 

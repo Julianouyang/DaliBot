@@ -7,7 +7,7 @@ import boto3
 import tiktoken
 from chat import ChatMessage
 from constants import Role, system_prompts
-from utils import Singleton
+from utils import Singleton, logger
 
 from .model import Model
 
@@ -30,12 +30,6 @@ class ChatHistory(metaclass=Singleton):
         self.short_msgs = []
         self.short_counter = 0
 
-        self.s3: boto3.client = boto3.client(
-            "s3",
-            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-        )
-
     def insert(self, new_message: ChatMessage):
         self.short_msgs.append(new_message)
         self.short_counter += 1
@@ -43,6 +37,18 @@ class ChatHistory(metaclass=Singleton):
             self.truncate_messages()
 
     def push_msgs_to_s3(self, msgs: List[ChatMessage]):
+        if (
+            os.getenv("AWS_ACCESS_KEY_ID") is None
+            or os.getenv("AWS_SECRET_ACCESS_KEY") is None
+        ):
+            logger.error("AWS credentials not found. Skipping storage..")
+            return
+
+        s3: boto3.client = boto3.client(
+            "s3",
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+        )
         timestamp = datetime.now().strftime("%Y%m%d")
 
         # List objects within the bucket
@@ -50,15 +56,15 @@ class ChatHistory(metaclass=Singleton):
         new_msgs_json = json.dumps([m.jsonify_full() for m in msgs], indent=4)
         try:
             # Try to download the existing file from S3
-            response = self.s3.get_object(Bucket=BUCKET, Key=filename)
+            response = s3.get_object(Bucket=BUCKET, Key=filename)
             existing_data = response["Body"].read().decode("utf-8")
             combined_data = json.loads(existing_data)
             combined_data.extend(json.loads(new_msgs_json))  # Append new data
             final_data = json.dumps(combined_data, indent=4)
-        except self.s3.exceptions.NoSuchKey:
+        except s3.exceptions.NoSuchKey:
             # If the file does not exist, use new data as the final data
             final_data = new_msgs_json
-        self.s3.put_object(Bucket=BUCKET, Key=filename, Body=final_data)
+        s3.put_object(Bucket=BUCKET, Key=filename, Body=final_data)
 
         # TODO: Add logic to ingest the JSON file into Elasticsearch
 

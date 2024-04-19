@@ -7,7 +7,6 @@ from datetime import datetime
 from chat import ChatMessage
 from constants import Role, system_prompts
 from llm_models import ChatHistory, Model, OpenAIChatInterface
-
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes

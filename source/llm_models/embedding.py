@@ -16,6 +16,7 @@ SHORT_MSG_LIMIT = 20
 BOT_NAME = os.environ.get("BOT_NAME")
 BUCKET = "bot-chat-dali"
 
+
 class ChatHistory(metaclass=Singleton):
     _instance = None
 
@@ -29,7 +30,7 @@ class ChatHistory(metaclass=Singleton):
         self.short_msgs = []
         self.short_counter = 0
 
-        self.s3:boto3.client = boto3.client(
+        self.s3: boto3.client = boto3.client(
             "s3",
             aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
             aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
@@ -46,13 +47,11 @@ class ChatHistory(metaclass=Singleton):
 
         # List objects within the bucket
         filename = f"{BOT_NAME}/chat_{timestamp}.json"
-        new_msgs_json = json.dumps(
-            [m.jsonify_full() for m in msgs], indent=4
-        )
+        new_msgs_json = json.dumps([m.jsonify_full() for m in msgs], indent=4)
         try:
             # Try to download the existing file from S3
             response = self.s3.get_object(Bucket=BUCKET, Key=filename)
-            existing_data = response['Body'].read().decode('utf-8')
+            existing_data = response["Body"].read().decode("utf-8")
             combined_data = json.loads(existing_data)
             combined_data.extend(json.loads(new_msgs_json))  # Append new data
             final_data = json.dumps(combined_data, indent=4)
@@ -63,7 +62,6 @@ class ChatHistory(metaclass=Singleton):
 
         # TODO: Add logic to ingest the JSON file into Elasticsearch
 
-    
     def truncate_messages(self, max_tokens: int = 5120) -> List[dict]:
         """Truncate messages if exceed the limit.
         However, this should not truncate system prompt.

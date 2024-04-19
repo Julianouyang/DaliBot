@@ -1,9 +1,8 @@
 import sys
 
+from dotenv import load_dotenv
 from telegram_bot import BotCore
 from utils import logger
-
-from dotenv import load_dotenv
 
 
 def main(args=None):

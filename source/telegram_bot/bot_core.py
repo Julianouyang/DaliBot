@@ -1,14 +1,18 @@
 import os
 
 from llm_models import Model
-
-from telegram_bot import (BotErrorCallback, BotMessageCallback,
-                      BotSystemModelCallback, BotSystemResetCallback,
-                      BotSystemStartCallback, BotVisionCallback)
 from telegram import Update
-from telegram.ext import (ApplicationBuilder, CommandHandler,
-                          MessageHandler, filters)
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
 from utils import Singleton, logger
+
+from .handler import (
+    BotErrorCallback,
+    BotMessageCallback,
+    BotSystemModelCallback,
+    BotSystemResetCallback,
+    BotSystemStartCallback,
+    BotVisionCallback,
+)
 
 HEROKU_DOMAIN = os.environ.get("HEROKU_DOMAIN")
 

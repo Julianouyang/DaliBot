@@ -72,23 +72,22 @@ class ChatHistory(metaclass=Singleton):
         """Truncate messages if exceed the limit.
         However, this should not truncate system prompt.
         """
-        total_tokens = 0
+        # total_tokens = 0
         total_messages = 0
         truncated_messages = []
 
         # load encoding for model
-        encoding = tiktoken.get_encoding("cl100k_base")
-        encoding = tiktoken.encoding_for_model(Model().get_current_chat_model())
+        # encoding = tiktoken.get_encoding("cl100k_base")
 
         # avoid modify system prompt
         message: ChatMessage
         for message in reversed(self.short_msgs):
             if message.role != Role.SYSTEM:
-                total_tokens += len(
-                    encoding.encode(json.dumps(message.jsonify_openai()))
-                )
+                # total_tokens += len(
+                #     encoding.encode(json.dumps(message.jsonify_openai()))
+                # )
                 total_messages += 1
-                if total_tokens <= max_tokens and total_messages < SHORT_MSG_LIMIT:
+                if total_messages < SHORT_MSG_LIMIT:  # total_tokens <= max_tokens
                     truncated_messages.insert(0, message)
                 else:
                     break
@@ -101,7 +100,7 @@ class ChatHistory(metaclass=Singleton):
             ),
         )
 
-        self.short_msgs = truncated_messages
+        self.short_msgs: List[ChatMessage] = truncated_messages
         self.short_counter = len(self.short_msgs)
         return [m.jsonify_openai() for m in self.short_msgs]
 

@@ -23,6 +23,7 @@ class ChatMessage:
         )
         self.type = kwargs.get("type", ChatType.TEXT).value
         self.image_url = kwargs.get("image_url", "")
+        self.tokens = kwargs.get("tokens", 0)
 
     def jsonify_full(self):
         return {
@@ -32,6 +33,7 @@ class ChatMessage:
             "timestamp": self.timestamp,
             "type": self.type,
             "image_url": self.image_url,
+            "tokens": self.tokens,
         }
 
     def jsonify_openai(self):

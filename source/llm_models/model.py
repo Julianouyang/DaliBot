@@ -2,8 +2,8 @@ from utils import Singleton
 
 
 class Model(metaclass=Singleton):
-    CHAT_MODEL_VISION = "gpt-4-turbo"  # gpt-4-vision-preview
-    CHAT_MODEL_TURBO = "gpt-4-turbo"
+    # gpt-4-turbo  gpt-4-vision-preview
+    CHAT_MODEL = "gpt-4o"
     IMAGE_MODEL = "dall-e-3"
 
     def __init__(self) -> None:

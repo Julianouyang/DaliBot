@@ -23,7 +23,7 @@ class BotCore(metaclass=Singleton):
         self.telegram_bot_token = os.environ.get("TELEGRAM_TOKEN")
         self.application = ApplicationBuilder().token(self.telegram_bot_token).build()
 
-        Model().set_current_chat_model(Model.CHAT_MODEL_VISION)
+        Model().set_current_chat_model(Model.CHAT_MODEL)
         Model().set_current_image_model(Model.IMAGE_MODEL)
 
     def run_local(self):

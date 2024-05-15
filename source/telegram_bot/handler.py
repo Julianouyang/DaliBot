@@ -2,7 +2,6 @@ import html
 import json
 import os
 import traceback
-from datetime import datetime
 
 from chat import ChatMessage
 from constants import Role, ChatType, system_prompts
@@ -28,7 +27,7 @@ class BotSystemStartCallback(Handler):
     async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text=f"Welcome! I'm a ChatGPT-powered {BOT_NAME}.",
+            text=f"Welcome! I'm a GPT-powered {BOT_NAME}.",
         )
 
 
@@ -44,7 +43,7 @@ class BotSystemModelCallback(Handler):
     async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         model = (" ").join(context.args)
         if "4" in model:
-            Model().set_current_chat_model("gpt-4-turbo-preview")
+            Model().set_current_chat_model("gpt-4-turbo")
         elif "3" in model:
             Model().set_current_chat_model("gpt-3.5-turbo")
         await context.bot.send_message(

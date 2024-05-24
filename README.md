@@ -1,6 +1,6 @@
 # DaliBot
 
-Welcome to DaliBot! This is a Telegram bot powered by OpenAI's GPT-4 model, ChatGPT. This bot facilitates dynamic and human-like conversation right within Telegram.
+Welcome to DaliBot! This is a Telegram bot powered by OpenAI's lastest GPT model. This bot facilitates dynamic and human-like conversation right within Telegram.
 
 ![example1](assets/example1.jpeg)
 
@@ -75,6 +75,7 @@ Heroku is used to deploy the app but other cloud providers like AWS should work 
 
 ```bash
 HEROKU_DOMAIN="https://example.herokuapp.com"
+```
 
 ## Troubleshoot
 

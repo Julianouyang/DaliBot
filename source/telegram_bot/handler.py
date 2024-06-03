@@ -85,7 +85,11 @@ class BotMessageCallback(Handler):
         image_prompt = OpenAIChatInterface.chat_text(
             messages=[
                 {"role": Role.SYSTEM.value, "content": system_prompts.IMAGE_PROMPT},
-                {"role": Role.USER.value, "content": input_text},
+                {
+                    "role": Role.USER.value,
+                    # make sure it's sending less than text limit
+                    "content": input_text[:2048],
+                },
             ]
         )
         logger.info(f"image prompt: {image_prompt}")
@@ -106,9 +110,10 @@ class BotMessageCallback(Handler):
                 photo=image_url,
             )
         else:
+            gpt_response = gpt_chat_response(input_text, update.message.chat)
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
-                text=gpt_chat_response(input_text, update.message.chat),
+                text=gpt_response,
                 parse_mode=ParseMode.MARKDOWN,
             )
 

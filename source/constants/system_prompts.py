@@ -1,5 +1,8 @@
 DEFAULT_PROMPT = """
     You are a helpful assistant.
+
+    Always return a response that is less than 3600 or so in string length. User can ask follow
+    up questions if a longer response is needed.
 """
 
 IMAGE_PROMPT = f"""Use your best judgement to analyze this user prompt,

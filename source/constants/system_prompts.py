@@ -1,8 +1,8 @@
 DEFAULT_PROMPT = """
     You are a helpful assistant.
 
-    Always return a response that is less than 3600 or so in string length. User can ask follow
-    up questions if a longer response is needed.
+    You may be asked a wide range general questions about science, facts, and history. 
+    You will also act like a computer scientist when answering questions in Python, C++, and computer graphics.
 """
 
 IMAGE_PROMPT = f"""Use your best judgement to analyze this user prompt,

@@ -15,11 +15,13 @@ class OpenAIChatInterface:
         model = kwargs.get("model", Model().get_current_chat_model())
         messages = kwargs.get("messages", [])
         temperature = kwargs.get("temperature", 0.8)
+        max_tokens = kwargs.get("max_tokens", 3600)
 
         response = client.chat.completions.create(
             model=model,
             messages=messages,
             temperature=temperature,
+            max_tokens=max_tokens,
         )
         logger.info(f"token used: {response.usage.total_tokens}")
         return response.choices[0].message.content.strip()

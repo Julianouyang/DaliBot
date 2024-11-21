@@ -81,8 +81,9 @@ class BotMessageCallback(Handler):
 
         input_text = update.message.text
         logger.info(f"input text: {input_text}")
-
+        # TODO use this to check if calling reasoning model
         image_prompt = OpenAIChatInterface.chat_text(
+            model=Model.SIMPLE_CHAT_MODEL,
             messages=[
                 {"role": Role.SYSTEM.value, "content": system_prompts.IMAGE_PROMPT},
                 {
@@ -90,7 +91,8 @@ class BotMessageCallback(Handler):
                     # make sure it's sending less than text limit
                     "content": input_text[:2048],
                 },
-            ]
+            ],
+            max_completion_tokens=512,
         )
         logger.info(f"image prompt: {image_prompt}")
 

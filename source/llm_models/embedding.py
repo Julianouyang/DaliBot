@@ -91,14 +91,15 @@ class ChatHistory(metaclass=Singleton):
                     truncated_messages.insert(0, message)
                 else:
                     break
-        truncated_messages.insert(
-            0,
-            ChatMessage(
-                role=Role.SYSTEM,
-                username="System",
-                content=system_prompts.DEFAULT_PROMPT,
-            ),
-        )
+        # NOTE o1 does not support system prompt
+        # truncated_messages.insert(
+        #     0,
+        #     ChatMessage(
+        #         role=Role.SYSTEM,
+        #         username="System",
+        #         content=system_prompts.DEFAULT_PROMPT,
+        #     ),
+        # )
 
         self.short_msgs: List[ChatMessage] = truncated_messages
         self.short_counter = len(self.short_msgs)

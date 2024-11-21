@@ -14,7 +14,7 @@ class OpenAIChatInterface:
     def chat_text(*args, **kwargs):
         model = kwargs.get("model", Model().get_current_chat_model())
         messages = kwargs.get("messages", [])
-        temperature = kwargs.get("temperature", 0.8)
+        temperature = kwargs.get("temperature", 1)
 
         response = client.chat.completions.create(
             model=model,

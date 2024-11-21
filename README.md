@@ -77,6 +77,8 @@ Heroku is used to deploy the app but other cloud providers like AWS should work 
 HEROKU_DOMAIN="https://example.herokuapp.com"
 ```
 
+See [Deploy your Code](https://devcenter.heroku.com/articles/git#deploy-your-code)
+
 ## Troubleshoot
 
 You can debug the app in vscode if anything goes wrong. The debug configuration is in .vscode/launch.json and is ready for use.

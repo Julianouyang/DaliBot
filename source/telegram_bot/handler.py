@@ -2,6 +2,8 @@ import html
 import json
 import os
 import traceback
+import base64
+from io import BytesIO
 
 from chat import ChatMessage
 from constants import Role, ChatType, system_prompts
@@ -95,19 +97,31 @@ class BotMessageCallback(Handler):
         logger.info(f"image prompt: {image_prompt}")
 
         if "@image" in image_prompt:
-            image_url = OpenAIChatInterface.chat_image(prompt=image_prompt)
+            # Set response_format to b64_json to get base64 encoded image
+            image_b64 = OpenAIChatInterface.chat_image(
+                prompt=image_prompt,
+            )
+            # Store image data in chat history
             assistant_msg = ChatMessage(
                 role=Role.ASSISTANT,
-                username="Assistant-dalle",
+                username="Assistant",
                 type=ChatType.IMAGE,
                 content=input_text,
-                image_url=image_url,
+                image_b64=image_b64,
             )
             chatHistory.insert(assistant_msg)
             chatHistory.push_msgs_to_s3([assistant_msg])
+            
+            # Decode base64 string to binary
+            image_data = base64.b64decode(image_b64)
+            # Create an in-memory file-like object
+            bio = BytesIO(image_data)
+            bio.name = "image.png"  # Name is required for Telegram API
+            
+            # Send the image
             await context.bot.send_photo(
                 chat_id=update.effective_chat.id,
-                photo=image_url,
+                photo=bio,
             )
         else:
             gpt_response = gpt_chat_response(input_text, update.message.chat)
@@ -127,34 +141,96 @@ class BotVisionCallback(Handler):
         input_photo = await context.bot.get_file(update.message.photo[-1].file_id)
         image_url = input_photo.file_path
 
-        input_text = update.message.caption if update.message.caption else ""
+        input_text = update.message.caption if update.message.caption else None
         logger.info(f"input_photo: {image_url}")
         logger.info(f"input_text: {input_text}")
+        
+        # Create user message with the image
         user_msg = ChatMessage(
             role=Role.USER,
             username=username,
-            content=input_text,
+            content=input_text if input_text else "",
             type=ChatType.IMAGE,
             image_url=image_url,
         )
         chatHistory.insert(user_msg)
-        out_text = OpenAIChatInterface.chat_vision(
-            caption=input_text,
-            image_url=image_url,
-        )
-        assistant_msg = ChatMessage(
-            role=Role.ASSISTANT,
-            username="Assistant",
-            type=ChatType.TEXT,
-            content=out_text,
-        )
-        chatHistory.insert(assistant_msg)
-        chatHistory.push_msgs_to_s3([user_msg, assistant_msg])
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text=out_text,
-            parse_mode=ParseMode.MARKDOWN,
-        )
+
+        is_edit_request = False
+        
+        # Check if this is an edit request
+        if input_text is not None:
+            image_prompt = OpenAIChatInterface.chat_text(
+                messages=[
+                    {"role": Role.SYSTEM.value, "content": system_prompts.IMAGE_PROMPT},
+                    {
+                        "role": Role.USER.value,
+                        # make sure it's sending less than text limit
+                        "content": input_text[:2048],
+                    },
+                ]
+            )
+            logger.info(f"image prompt: {image_prompt}")
+
+            if "@edit" in image_prompt:
+                is_edit_request = True
+                # Download the file from Telegram
+                image_bytes = await input_photo.download_as_bytearray()
+                # Convert to base64
+                base64_image = base64.b64encode(image_bytes).decode('utf-8')
+                
+                # Extract the edit prompt
+                edit_prompt = image_prompt
+                if '@edit' in image_prompt:
+                    edit_prompt = image_prompt.split('@edit')[1].strip()
+                
+                # Edit the image
+                image_b64 = OpenAIChatInterface.edit_image(
+                    prompt=edit_prompt,
+                    base64_image=base64_image
+                )
+                # Store image data in chat history
+                assistant_msg = ChatMessage(
+                    role=Role.ASSISTANT,
+                    username="Assistant",
+                    type=ChatType.IMAGE,
+                    content=input_text,
+                    image_b64=image_b64,
+                )
+                chatHistory.insert(assistant_msg)
+                chatHistory.push_msgs_to_s3([user_msg, assistant_msg])
+                
+                # Decode base64 string to binary
+                image_data = base64.b64decode(image_b64)
+                # Create an in-memory file-like object
+                bio = BytesIO(image_data)
+                bio.name = "edited_image.png"  # Name is required for Telegram API
+                
+                # Send the edited image
+                await context.bot.send_photo(
+                    chat_id=update.effective_chat.id,
+                    photo=bio,
+                    caption=f"Here's your edited image based on: {edit_prompt}",
+                )
+        
+        # If this is not an edit request, perform vision analysis
+        if not is_edit_request:
+            out_text = OpenAIChatInterface.chat_vision(
+                caption=input_text if input_text else "Describe the image",
+                image_url=image_url,
+            )
+            assistant_msg = ChatMessage(
+                role=Role.ASSISTANT,
+                username="Assistant",
+                type=ChatType.TEXT,
+                content=out_text,
+            )
+            chatHistory.insert(assistant_msg)
+            chatHistory.push_msgs_to_s3([user_msg, assistant_msg])
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=out_text,
+                parse_mode=ParseMode.MARKDOWN,
+            )
 
 
 class BotErrorCallback(Handler):

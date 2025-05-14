@@ -12,6 +12,7 @@ class ChatMessage:
         timestamp
         type
         image_url
+        image_b64
     """
 
     def __init__(self, **kwargs):
@@ -23,6 +24,7 @@ class ChatMessage:
         )
         self.type = kwargs.get("type", ChatType.TEXT).value
         self.image_url = kwargs.get("image_url", "")
+        self.image_b64 = kwargs.get("image_b64", "")
         self.tokens = kwargs.get("tokens", 0)
 
     def jsonify_full(self):
@@ -33,6 +35,7 @@ class ChatMessage:
             "timestamp": self.timestamp,
             "type": self.type,
             "image_url": self.image_url,
+            "image_b64": self.image_b64,
             "tokens": self.tokens,
         }
 

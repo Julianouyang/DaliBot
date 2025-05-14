@@ -1,4 +1,7 @@
 import os
+import base64
+from io import BytesIO
+from PIL import Image
 
 from constants import Role
 from openai import OpenAI
@@ -32,14 +35,54 @@ class OpenAIChatInterface:
         prompt = kwargs.get("prompt", "")
         n = kwargs.get("n", 1)
         size = kwargs.get("size", "1024x1024")
+        quality = kwargs.get("quality", "high")
 
         response = client.images.generate(
             model=model,
             prompt=prompt,
             n=n,
             size=size,
+            quality=quality,
         )
-        return response.data[0].url
+        return response.data[0].b64_json
+
+    @staticmethod
+    def edit_image(*args, **kwargs):
+        """
+        Creates a new image based on the prompt and description of the original image.
+        """
+
+        prompt = kwargs.get("prompt", "")
+        base64_image = kwargs.get("base64_image", "")
+        quality = kwargs.get("quality", "high")
+
+        # Decode the base64 string and load it with PIL
+        image_data = base64.b64decode(base64_image)
+        img = Image.open(BytesIO(image_data))
+
+        # Ensure the image has an alpha channel so the transparent mask aligns
+        if img.mode != "RGBA":
+            img = img.convert("RGBA")
+
+        # Serialize image and mask into in-memory byte buffers
+        image_buffer = BytesIO()
+        img.save(image_buffer, format="PNG")
+        image_buffer.seek(0)
+
+        # Provide a pseudo-filename so the OpenAI SDK infers content type
+        image_buffer.name = "image.png"
+
+        try:
+            response = client.images.edit(
+                model="gpt-image-1",
+                image=image_buffer,
+                prompt=prompt,
+                n=1,
+            )
+            return response.data[0].b64_json
+        except Exception as e:
+            logger.error(f"Error editing image: {e}")
+            raise e
 
     @staticmethod
     def chat_vision(*args, **kwargs):
@@ -52,10 +95,7 @@ class OpenAIChatInterface:
                 {
                     "role": Role.USER.value,
                     "content": [
-                        {
-                            "type": "text",
-                            "text": caption,
-                        },
+                        {"type": "text", "text": caption},
                         {"type": "image_url", "image_url": {"url": image_url}},
                     ],
                 },

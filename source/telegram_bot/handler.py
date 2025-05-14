@@ -111,13 +111,13 @@ class BotMessageCallback(Handler):
             )
             chatHistory.insert(assistant_msg)
             chatHistory.push_msgs_to_s3([assistant_msg])
-            
+
             # Decode base64 string to binary
             image_data = base64.b64decode(image_b64)
             # Create an in-memory file-like object
             bio = BytesIO(image_data)
             bio.name = "image.png"  # Name is required for Telegram API
-            
+
             # Send the image
             await context.bot.send_photo(
                 chat_id=update.effective_chat.id,
@@ -144,7 +144,7 @@ class BotVisionCallback(Handler):
         input_text = update.message.caption if update.message.caption else None
         logger.info(f"input_photo: {image_url}")
         logger.info(f"input_text: {input_text}")
-        
+
         # Create user message with the image
         user_msg = ChatMessage(
             role=Role.USER,
@@ -156,7 +156,7 @@ class BotVisionCallback(Handler):
         chatHistory.insert(user_msg)
 
         is_edit_request = False
-        
+
         # Check if this is an edit request
         if input_text is not None:
             image_prompt = OpenAIChatInterface.chat_text(
@@ -176,17 +176,16 @@ class BotVisionCallback(Handler):
                 # Download the file from Telegram
                 image_bytes = await input_photo.download_as_bytearray()
                 # Convert to base64
-                base64_image = base64.b64encode(image_bytes).decode('utf-8')
-                
+                base64_image = base64.b64encode(image_bytes).decode("utf-8")
+
                 # Extract the edit prompt
                 edit_prompt = image_prompt
-                if '@edit' in image_prompt:
-                    edit_prompt = image_prompt.split('@edit')[1].strip()
-                
+                if "@edit" in image_prompt:
+                    edit_prompt = image_prompt.split("@edit")[1].strip()
+
                 # Edit the image
                 image_b64 = OpenAIChatInterface.edit_image(
-                    prompt=edit_prompt,
-                    base64_image=base64_image
+                    prompt=edit_prompt, base64_image=base64_image
                 )
                 # Store image data in chat history
                 assistant_msg = ChatMessage(
@@ -198,20 +197,20 @@ class BotVisionCallback(Handler):
                 )
                 chatHistory.insert(assistant_msg)
                 chatHistory.push_msgs_to_s3([user_msg, assistant_msg])
-                
+
                 # Decode base64 string to binary
                 image_data = base64.b64decode(image_b64)
                 # Create an in-memory file-like object
                 bio = BytesIO(image_data)
                 bio.name = "edited_image.png"  # Name is required for Telegram API
-                
+
                 # Send the edited image
                 await context.bot.send_photo(
                     chat_id=update.effective_chat.id,
                     photo=bio,
                     caption=f"Here's your edited image based on: {edit_prompt}",
                 )
-        
+
         # If this is not an edit request, perform vision analysis
         if not is_edit_request:
             out_text = OpenAIChatInterface.chat_vision(
